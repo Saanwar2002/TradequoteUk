@@ -136,7 +136,10 @@ class SDKServer {
   }
 
   private getSessionSecret() {
-    const secret = ENV.cookieSecret;
+    const secret = ENV.cookieSecret || process.env.JWT_SECRET || "fallback-secret-for-sandbox";
+    if (!ENV.cookieSecret && !process.env.JWT_SECRET) {
+      console.warn("[Auth] JWT_SECRET is missing, using fallback. Please check .env file.");
+    }
     return new TextEncoder().encode(secret);
   }
 

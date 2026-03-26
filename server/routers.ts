@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure, publicProcedure } from "./_core/index";
+import { router, protectedProcedure, publicProcedure } from "./_core/trpc";
 import * as db from "./db";
 import * as ai from "./ai-service";
 import * as matching from "./matching-service";
