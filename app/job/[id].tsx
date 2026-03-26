@@ -103,6 +103,22 @@ export default function JobDetailScreen() {
             <Text style={[styles.description, { color: colors.foreground }]}>{job.description}</Text>
           </View>
 
+          {/* Availability Info */}
+          {isHomeowner && (
+            <View style={[styles.section, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <IconSymbol name="clock.fill" size={16} color={colors.primary} />
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Preferred Start Date</Text>
+              </View>
+              <Text style={[styles.description, { color: colors.foreground }]}>
+                {job.preferredStartDate ? (typeof job.preferredStartDate === "string" ? job.preferredStartDate : new Date(job.preferredStartDate).toLocaleDateString("en-GB")) : "ASAP"}
+              </Text>
+              <Text style={[{ fontSize: 12, color: colors.muted, marginTop: 8 }]}>
+                Check tradesperson profiles to see their available dates and times before accepting quotes.
+              </Text>
+            </View>
+          )}
+
           {/* Quotes Section */}
           <View style={styles.quotesSection}>
             <View style={styles.quotesSectionHeader}>

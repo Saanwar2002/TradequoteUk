@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { ENV } from "./_core/env";
 import {
   appUsers,
+  availabilitySlots,
   conversations,
   credentials,
   favourites,
@@ -373,4 +374,22 @@ export async function removeFavourite(homeownerId: number, tradespersonId: numbe
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(favourites).where(and(eq(favourites.homeownerId, homeownerId), eq(favourites.tradespersonId, tradespersonId)));
+}
+
+// ─── Availability Slots ─────────────────────────────────────────────────────────────────
+export async function getAvailabilitySlots(tradespersonId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(availabilitySlots).where(eq(availabilitySlots.tradespersonId, tradespersonId));
+}
+export async function addAvailabilitySlot(data: { tradespersonId: number; date: string; startTime: string; endTime: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(availabilitySlots).values(data);
+  return result[0].insertId;
+}
+export async function removeAvailabilitySlot(slotId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(availabilitySlots).where(eq(availabilitySlots.id, slotId));
 }

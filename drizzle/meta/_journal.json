@@ -22,6 +22,13 @@
       "when": 1774491785994,
       "tag": "0002_sweet_bulldozer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1774494210954,
+      "tag": "0003_demonic_vulcan",
+      "breakpoints": true
     }
   ]
 }

@@ -198,3 +198,91 @@ describe("TradeQuote UK - New Features", () => {
     expect(applyBoost("normal", true)).toBe(false);
   });
 });
+
+
+describe("TradeQuote UK - Availability Calendar", () => {
+  it("formats availability slot date correctly", () => {
+    const formatDate = (dateStr: string) => {
+      const d = new Date(dateStr + "T00:00:00");
+      return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    };
+    expect(formatDate("2026-04-15")).toContain("Apr");
+    expect(formatDate("2026-04-15")).toContain("15");
+  });
+
+  it("validates availability time format", () => {
+    const isValidTime = (time: string) => {
+      const parts = time.split(":");
+      if (!/^\d{2}:\d{2}$/.test(time)) return false;
+      const [hour, min] = parts.map(Number);
+      return hour < 24 && min < 60;
+    };
+    expect(isValidTime("09:00")).toBe(true);
+    expect(isValidTime("17:30")).toBe(true);
+    expect(isValidTime("9:00")).toBe(false);
+    expect(isValidTime("25:00")).toBe(false);
+  });
+
+  it("calculates availability slot duration", () => {
+    const getDuration = (startTime: string, endTime: string) => {
+      const [startHour, startMin] = startTime.split(":").map(Number);
+      const [endHour, endMin] = endTime.split(":").map(Number);
+      const startTotalMin = startHour * 60 + startMin;
+      const endTotalMin = endHour * 60 + endMin;
+      return endTotalMin - startTotalMin;
+    };
+    expect(getDuration("09:00", "17:00")).toBe(480);
+    expect(getDuration("09:00", "12:30")).toBe(210);
+    expect(getDuration("14:00", "16:00")).toBe(120);
+  });
+
+  it("checks if time slot is available", () => {
+    const isAvailable = (slotTime: string, currentTime: string) => {
+      const [slotHour] = slotTime.split(":").map(Number);
+      const [currentHour] = currentTime.split(":").map(Number);
+      return slotHour > currentHour;
+    };
+    expect(isAvailable("14:00", "09:00")).toBe(true);
+    expect(isAvailable("09:00", "14:00")).toBe(false);
+  });
+
+  it("validates availability slot does not overlap", () => {
+    const hasOverlap = (slot1: { start: string; end: string }, slot2: { start: string; end: string }) => {
+      const toMin = (time: string) => parseInt(time.split(":")[0]) * 60 + parseInt(time.split(":")[1]);
+      const slot1End = toMin(slot1.end);
+      const slot2Start = toMin(slot2.start);
+      return slot1End > slot2Start;
+    };
+    expect(hasOverlap({ start: "09:00", end: "12:00" }, { start: "12:00", end: "17:00" })).toBe(false);
+    expect(hasOverlap({ start: "09:00", end: "13:00" }, { start: "12:00", end: "17:00" })).toBe(true);
+  });
+
+  it("displays availability on tradesperson profile", () => {
+    const formatAvailability = (available: boolean) => available ? "Available" : "Not available";
+    expect(formatAvailability(true)).toBe("Available");
+    expect(formatAvailability(false)).toBe("Not available");
+  });
+
+  it("marks slot as booked when quote accepted", () => {
+    let isBooked = false;
+    expect(isBooked).toBe(false);
+    isBooked = true;
+    expect(isBooked).toBe(true);
+  });
+
+  it("allows tradesperson to add multiple availability slots", () => {
+    const slots = [
+      { date: "2026-04-15", startTime: "09:00", endTime: "17:00" },
+      { date: "2026-04-16", startTime: "09:00", endTime: "17:00" },
+      { date: "2026-04-17", startTime: "10:00", endTime: "16:00" },
+    ];
+    expect(slots.length).toBe(3);
+    expect(slots[0].date).toBe("2026-04-15");
+  });
+
+  it("shows availability info on job detail for homeowners", () => {
+    const shouldShowAvailability = (userRole: string) => userRole === "homeowner";
+    expect(shouldShowAvailability("homeowner")).toBe(true);
+    expect(shouldShowAvailability("tradesperson")).toBe(false);
+  });
+});

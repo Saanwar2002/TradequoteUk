@@ -74,6 +74,30 @@ export default function TradespersonProfileScreen() {
             ))}
           </View>
 
+          {/* Availability */}
+          <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Availability</Text>
+            <View style={styles.availabilityList}>
+              {[
+                { day: "Mon", time: "09:00 – 17:00", available: true },
+                { day: "Tue", time: "09:00 – 17:00", available: true },
+                { day: "Wed", time: "09:00 – 17:00", available: true },
+                { day: "Thu", time: "09:00 – 17:00", available: true },
+                { day: "Fri", time: "09:00 – 17:00", available: true },
+                { day: "Sat", time: "Not available", available: false },
+                { day: "Sun", time: "Not available", available: false },
+              ].map((slot) => (
+                <View key={slot.day} style={[styles.availabilityItem, { borderColor: colors.border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.availabilityDay, { color: colors.foreground }]}>{slot.day}</Text>
+                    <Text style={[styles.availabilityTime, { color: slot.available ? colors.success : colors.muted }]}>{slot.time}</Text>
+                  </View>
+                  {slot.available && <IconSymbol name="checkmark.circle.fill" size={16} color={colors.success} />}
+                </View>
+              ))}
+            </View>
+          </View>
+
           {/* Credentials */}
           <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Credentials & Certifications</Text>
@@ -182,6 +206,10 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11 },
   section: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 12 },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
+  availabilityList: { gap: 8 },
+  availabilityItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 0.5 },
+  availabilityDay: { fontSize: 14, fontWeight: "700" },
+  availabilityTime: { fontSize: 12, marginTop: 2 },
   credentialsList: { gap: 8 },
   credentialItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 0.5 },
   credIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },

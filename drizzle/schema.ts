@@ -240,7 +240,19 @@ export const credentials = mysqlTable("credentials", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ─── Favourite Tradespeople ─────────────────────────────────────────────────────
+// ─── F// ─── Availability Slots ────────────────────────────────────────────
+
+export const availabilitySlots = mysqlTable("availability_slots", {
+  id: int("id").autoincrement().primaryKey(),
+  tradespersonId: int("tradespersonId").notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  startTime: varchar("startTime", { length: 5 }).notNull(),
+  endTime: varchar("endTime", { length: 5 }).notNull(),
+  isBooked: boolean("isBooked").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ─── Favourite Tradespeople ─────────────────────────────────────
 
 export const favourites = mysqlTable("favourites", {
   id: int("id").autoincrement().primaryKey(),

@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `availability_slots` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`tradespersonId` int NOT NULL,\n\t`date` varchar(10) NOT NULL,\n\t`startTime` varchar(5) NOT NULL,\n\t`endTime` varchar(5) NOT NULL,\n\t`isBooked` boolean NOT NULL DEFAULT false,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `availability_slots_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 48bP948WRihkgKd.root --database 3Q9CEa3cTyEZW32bcCWGQo --execute CREATE TABLE `availability_slots` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`tradespersonId` int NOT NULL,\n\t`date` varchar(10) NOT NULL,\n\t`startTime` varchar(5) NOT NULL,\n\t`endTime` varchar(5) NOT NULL,\n\t`isBooked` boolean NOT NULL DEFAULT false,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `availability_slots_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1129
+}

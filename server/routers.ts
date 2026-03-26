@@ -143,6 +143,13 @@ export const appRouter = router({
     add: protectedProcedure.input(z.object({ tradespersonId: z.number() })).mutation(async ({ ctx, input }) => { await db.addFavourite(ctx.user.id, input.tradespersonId); return { success: true }; }),
     remove: protectedProcedure.input(z.object({ tradespersonId: z.number() })).mutation(async ({ ctx, input }) => { await db.removeFavourite(ctx.user.id, input.tradespersonId); return { success: true }; }),
   }),
+  availability: router({
+    list: protectedProcedure.input(z.object({ tradespersonId: z.number() })).query(async ({ input }) => db.getAvailabilitySlots(input.tradespersonId)),
+    add: protectedProcedure
+      .input(z.object({ date: z.string(), startTime: z.string(), endTime: z.string() }))
+      .mutation(async ({ ctx, input }) => { const id = await db.addAvailabilitySlot({ tradespersonId: ctx.user.id, date: input.date, startTime: input.startTime, endTime: input.endTime }); return { id }; }),
+    remove: protectedProcedure.input(z.object({ slotId: z.number() })).mutation(async ({ input }) => { await db.removeAvailabilitySlot(input.slotId); return { success: true }; }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

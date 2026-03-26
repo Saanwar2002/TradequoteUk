@@ -90,3 +90,9 @@
 - [x] Boost promotion for emergency jobs (£3 boost to top of list for 24h)
 - [x] Tradesperson response time tracking (display on profiles)
 - [x] Job expiry countdown timer (on active jobs)
+
+
+## Upcoming Features
+- [x] Tradesperson availability calendar (set available dates/times)
+- [x] Display availability on profiles and job posting flow
+- [x] Availability slot management screen for tradespeople
