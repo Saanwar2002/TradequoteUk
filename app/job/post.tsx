@@ -22,6 +22,16 @@ const TRADE_CATEGORIES = [
   { id: 10, name: "Solar & Renewables", icon: "sun.max.fill" as const },
   { id: 11, name: "Bathroom Fitting", icon: "drop.fill" as const },
   { id: 12, name: "Kitchen Fitting", icon: "house.fill" as const },
+  { id: 13, name: "Home Appliance Repair", icon: "washer.fill" as const },
+  { id: 14, name: "Handyman Services", icon: "wrench.and.screwdriver.fill" as const },
+  { id: 15, name: "Smart Home & Security", icon: "lock.shield.fill" as const },
+  { id: 16, name: "EV Charger Installation", icon: "bolt.car.fill" as const },
+  { id: 17, name: "Pest Control", icon: "ant.fill" as const },
+  { id: 18, name: "Locksmith Services", icon: "key.fill" as const },
+  { id: 19, name: "Waste Removal", icon: "trash.fill" as const },
+  { id: 20, name: "Window & Door Fitting", icon: "door.left.hand.closed" as const },
+  { id: 21, name: "Flooring & Tiling", icon: "square.grid.3x3.fill" as const },
+  { id: 22, name: "Fencing & Decking", icon: "fence.fill" as const },
 ];
 
 const URGENCY_OPTIONS = [
