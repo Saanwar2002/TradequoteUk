@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useAppContext, type AppRole } from "@/lib/app-context";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/use-auth";
+import { startOAuthLogin } from "@/constants/oauth";
 
 type Step = "welcome" | "role" | "details" | "trade_details" | "done";
 
@@ -42,7 +43,13 @@ export default function OnboardingScreen() {
     setError("");
     if (step === "welcome") {
       if (!user) {
-        router.push("/oauth/callback" as any);
+        // Trigger OAuth login flow
+        try {
+          await startOAuthLogin();
+        } catch (err) {
+          setError("Failed to start login. Please try again.");
+          console.error("OAuth login error:", err);
+        }
         return;
       }
       setStep("role");

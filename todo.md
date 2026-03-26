@@ -77,3 +77,8 @@
 - [ ] Push notifications integration
 - [ ] Escrow payment flow
 - [ ] Search tradespeople with map
+
+## Bug Fixes
+- [x] Fix OAuth callback error "Missing code or state parameter" on app open
+- [x] Handle unauthenticated users gracefully in onboarding flow
+- [x] Prevent redirect to oauth/callback when no auth code present

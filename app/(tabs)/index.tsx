@@ -1,11 +1,12 @@
-import { ScrollView, Text, View, Pressable, StyleSheet, FlatList } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useAuth } from "@/hooks/use-auth";
+import { startOAuthLogin } from "@/constants/oauth";
 import { useAppContext } from "@/lib/app-context";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/use-auth";
 
 const TRADE_CATEGORIES = [
   { slug: "plumbing", name: "Plumbing", icon: "drop.fill" as const },
@@ -49,12 +50,12 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.ctaRow}>
-            <Pressable
-              style={({ pressed }) => [styles.ctaPrimary, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push("/onboarding" as any)}
-            >
-              <Text style={styles.ctaPrimaryText}>Get Started</Text>
-            </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.ctaBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+          onPress={() => startOAuthLogin()}
+        >
+          <Text style={styles.ctaBtnText}>Get Started</Text>
+        </Pressable>
           </View>
 
           <View style={styles.featureGrid}>
@@ -206,6 +207,8 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
   heroSubtitle: { fontSize: 16, textAlign: "center", lineHeight: 24, paddingHorizontal: 20 },
   ctaRow: { paddingHorizontal: 20, marginBottom: 32 },
+  ctaBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center" },
+  ctaBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
   ctaPrimary: { borderRadius: 14, paddingVertical: 16, alignItems: "center" },
   ctaPrimaryText: { color: "#fff", fontSize: 17, fontWeight: "700" },
   featureGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 20, paddingBottom: 40 },
