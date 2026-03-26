@@ -330,6 +330,21 @@ export async function getProgressUpdatesByJob(jobId: number) {
   return db.select().from(progressUpdates).where(eq(progressUpdates.jobId, jobId)).orderBy(desc(progressUpdates.createdAt));
 }
 
+export async function createJobMilestones(jobId: number, milestones: { title: string, description: string }[]) {
+  const db = await getDb();
+  if (!db) return;
+  for (const m of milestones) {
+    await db.insert(progressUpdates).values({
+      jobId,
+      isMilestone: true,
+      milestoneTitle: m.title,
+      description: m.description,
+      milestoneStatus: "pending",
+      tradespersonId: 0, // System-generated milestones don't have a tradesperson yet
+    });
+  }
+}
+
 // ─── Notification Helpers ──────────────────────────────────────────────────────────
 
 export async function getNotificationsByUser(userId: number) {

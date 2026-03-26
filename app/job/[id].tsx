@@ -18,7 +18,7 @@ export default function JobDetailScreen() {
 
   const { data: job, isLoading } = trpc.jobs.get.useQuery({ id: parseInt(id) }, { enabled: !!id });
   const { data: quotes } = trpc.quotes.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
-  const { data: progressUpdates } = trpc.progress.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id && job?.status === "in_progress" });
+  const { data: progressUpdates } = trpc.progress.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
 
   const acceptQuote = trpc.quotes.accept.useMutation({
     onSuccess: () => {
@@ -105,14 +105,19 @@ export default function JobDetailScreen() {
             <Text style={[styles.description, { color: colors.foreground }]}>{job.description}</Text>
           </View>
 
-          {/* Project Timeline */}
-          {job.status === "in_progress" && progressUpdates && progressUpdates.length > 0 && (
+          {/* Project Timeline / AI Checklist */}
+          {progressUpdates && progressUpdates.length > 0 && (
             <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, padding: 0, overflow: "hidden" }]}>
               <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <IconSymbol name="checkmark.circle.fill" size={16} color={colors.primary} />
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Project Progress</Text>
+                  <IconSymbol name="sparkles" size={16} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>AI-Generated Job Checklist</Text>
                 </View>
+                {job.status === "open" && (
+                  <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 8 }}>
+                    These milestones help you and your tradesperson stay aligned on the project steps.
+                  </Text>
+                )}
               </View>
               <ProjectTimeline events={progressUpdates} onVerifyMilestone={(id) => {
                 // Handle milestone verification

@@ -74,3 +74,60 @@ export async function estimateJobCost(
     };
   }
 }
+
+export interface ChecklistItem {
+  title: string;
+  description: string;
+}
+
+export async function generateJobChecklist(
+  title: string,
+  description: string,
+  category: string
+): Promise<ChecklistItem[]> {
+  try {
+    const prompt = `
+    You are an expert UK project manager for home improvement and trade services.
+    Generate a 5-step checklist for the following job to ensure quality and safety.
+    
+    Job Category: ${category}
+    Job Title: ${title}
+    Job Description: ${description}
+    
+    Provide your response in JSON format with the following structure:
+    {
+      "checklist": [
+        { "title": "Step 1 Title", "description": "Brief description of what needs to be done." },
+        ...
+      ]
+    }
+    
+    Focus on practical, trade-specific steps relevant to the UK market.
+    Only return the JSON object, nothing else.
+    `;
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "You are a professional project manager for UK home improvement and trade services." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) throw new Error("Empty response from AI service");
+
+    const result = JSON.parse(content) as { checklist: ChecklistItem[] };
+    return result.checklist.slice(0, 5);
+  } catch (error) {
+    console.error("[AI Service] Error generating checklist:", error);
+    return [
+      { title: "Initial Inspection", description: "Review job requirements and site access." },
+      { title: "Material Preparation", description: "Source and verify all necessary materials." },
+      { title: "Work Execution", description: "Perform the core tasks as described." },
+      { title: "Quality Check", description: "Verify work meets standards and customer expectations." },
+      { title: "Site Cleanup", description: "Ensure the work area is clean and safe." }
+    ];
+  }
+}

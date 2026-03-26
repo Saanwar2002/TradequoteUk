@@ -76,6 +76,19 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const expiresAt = input.urgency === "emergency" ? new Date(Date.now() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const jobId = await db.createJob({ homeownerId: ctx.user.id, tradeCategoryId: input.tradeCategoryId, title: input.title, description: input.description, postcode: input.postcode, urgency: input.urgency, budgetMin: input.budgetMin?.toString(), budgetMax: input.budgetMax?.toString(), budgetNotSure: input.budgetNotSure, preferredStartDate: input.preferredStartDate ? new Date(input.preferredStartDate) : undefined, isGroupJob: input.isGroupJob, isEmergency: input.isEmergency, isBoosted: input.isBoosted, expiresAt, status: "open" });
+        
+        // Generate and save AI checklist
+        try {
+          const categories = await db.getTradeCategories();
+          const category = categories.find(c => c.id === input.tradeCategoryId)?.name || "General";
+          const checklist = await ai.generateJobChecklist(input.title, input.description, category);
+          if (checklist && checklist.length > 0) {
+            await db.createJobMilestones(Number(jobId), checklist);
+          }
+        } catch (err) {
+          console.error("[Router] Failed to generate AI checklist:", err);
+        }
+
         return { jobId };
       }),
     myJobs: protectedProcedure.query(async ({ ctx }) => db.getJobsByHomeowner(ctx.user.id)),
