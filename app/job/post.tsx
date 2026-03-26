@@ -1,6 +1,6 @@
 import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useState, useEffect } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -33,6 +33,7 @@ const URGENCY_OPTIONS = [
 export default function PostJobScreen() {
   const colors = useColors();
   const router = useRouter();
+  const params = useLocalSearchParams<{ emergency?: string }>();
 
   const [step, setStep] = useState<Step>("category");
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -46,6 +47,14 @@ export default function PostJobScreen() {
   const [preferredDate, setPreferredDate] = useState("");
   const [isEmergency, setIsEmergency] = useState(false);
   const [error, setError] = useState("");
+
+  // If emergency param is set, set urgency to emergency
+  useEffect(() => {
+    if (params.emergency === "true") {
+      setUrgency("emergency");
+      setIsEmergency(true);
+    }
+  }, [params.emergency]);
 
   const createJob = trpc.jobs.create.useMutation({
     onSuccess: (data) => {

@@ -168,18 +168,20 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Emergency Banner */}
-          <Pressable
-            style={({ pressed }) => [styles.emergencyBanner, { opacity: pressed ? 0.9 : 1 }]}
-            onPress={() => router.push("/job/post" as any)}
-          >
-            <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#fff" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.emergencyTitle}>Emergency Call-Out</Text>
-              <Text style={styles.emergencyDesc}>Need urgent help? Get tradespeople within the hour.</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={16} color="#fff" />
-          </Pressable>
+          {/* Emergency Banner - Only for homeowners */}
+          {isHomeowner && (
+            <Pressable
+              style={({ pressed }) => [styles.emergencyBanner, { opacity: pressed ? 0.9 : 1 }]}
+              onPress={() => router.push({ pathname: "/job/post", params: { emergency: "true" } } as any)}
+            >
+              <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emergencyTitle}>Emergency Call-Out</Text>
+                <Text style={styles.emergencyDesc}>Need urgent help? Get tradespeople within the hour.</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color="#fff" />
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </ScreenContainer>

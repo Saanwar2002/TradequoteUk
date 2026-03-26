@@ -82,3 +82,6 @@
 - [x] Fix OAuth callback error "Missing code or state parameter" on app open
 - [x] Handle unauthenticated users gracefully in onboarding flow
 - [x] Prevent redirect to oauth/callback when no auth code present
+
+## Current Issues
+- [x] Emergency call-out button does not work
