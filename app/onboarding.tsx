@@ -7,7 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useAppContext, type AppRole } from "@/lib/app-context";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/use-auth";
-import { startOAuthLogin } from "@/constants/oauth";
+import { startOAuthLogin, getApiBaseUrl } from "@/constants/oauth";
 
 type Step = "welcome" | "role" | "details" | "trade_details" | "done";
 
@@ -53,6 +53,12 @@ export default function OnboardingScreen() {
       if (!user) {
         // Trigger OAuth login flow
         try {
+          // In sandbox environment, use mock login if OAuth is not configured
+          if (Platform.OS === "web" && typeof window !== "undefined") {
+            const apiBaseUrl = getApiBaseUrl();
+            window.location.href = `${apiBaseUrl}/api/auth/mock`;
+            return;
+          }
           await startOAuthLogin();
         } catch (err) {
           setError("Failed to start login. Please try again.");

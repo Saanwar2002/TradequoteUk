@@ -145,6 +145,36 @@ export function registerOAuthRoutes(app: Express) {
     }
   });
 
+  // Mock login for sandbox environment
+  app.get("/api/auth/mock", async (req: Request, res: Response) => {
+    try {
+      const mockUser = {
+        openId: "mock-user-id",
+        name: "Sandbox User",
+        email: "sandbox@example.com",
+        loginMethod: "mock",
+      };
+
+      const user = await syncUser(mockUser);
+      const sessionToken = await sdk.createSessionToken(mockUser.openId, {
+        name: mockUser.name,
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      const frontendUrl =
+        process.env.EXPO_WEB_PREVIEW_URL ||
+        process.env.EXPO_PACKAGER_PROXY_URL ||
+        "http://localhost:8081";
+      res.redirect(302, frontendUrl);
+    } catch (error) {
+      console.error("[Auth] Mock login failed:", error);
+      res.status(500).json({ error: "Mock login failed" });
+    }
+  });
+
   // Establish session cookie from Bearer token
   // Used by iframe preview: frontend receives token via postMessage, then calls this endpoint
   // to get a proper Set-Cookie response from the backend (3000-xxx domain)
