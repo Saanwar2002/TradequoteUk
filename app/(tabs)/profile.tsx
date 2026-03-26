@@ -142,19 +142,19 @@ export default function ProfileScreen() {
         {/* Account Section */}
         <View style={[styles.section, { borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>ACCOUNT</Text>
-          <ProfileRow icon="person.fill" label="Edit Profile" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="lock.fill" label="Privacy & Security" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="bell.fill" label="Notification Preferences" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="creditcard.fill" label="Payment Methods" onPress={() => {}} colors={colors} />
+          <ProfileRow icon="person.fill" label="Edit Profile" onPress={() => alert("Edit Profile coming soon")} colors={colors} />
+          <ProfileRow icon="lock.fill" label="Privacy & Security" onPress={() => alert("Privacy & Security settings coming soon")} colors={colors} />
+          <ProfileRow icon="bell.fill" label="Notification Preferences" onPress={() => alert("Notification preferences coming soon")} colors={colors} />
+          <ProfileRow icon="creditcard.fill" label="Payment Methods" onPress={() => alert("Payment methods coming soon")} colors={colors} />
         </View>
 
         {/* Support Section */}
         <View style={[styles.section, { borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>SUPPORT</Text>
-          <ProfileRow icon="questionmark.circle.fill" label="Help Centre" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="flag.fill" label="Report a Problem" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="doc.text.fill" label="Terms & Conditions" onPress={() => {}} colors={colors} />
-          <ProfileRow icon="shield.fill" label="Privacy Policy" onPress={() => {}} colors={colors} />
+          <ProfileRow icon="questionmark.circle.fill" label="Help Centre" onPress={() => alert("Help Centre coming soon")} colors={colors} />
+          <ProfileRow icon="flag.fill" label="Report a Problem" onPress={() => alert("Report a Problem coming soon")} colors={colors} />
+          <ProfileRow icon="doc.text.fill" label="Terms & Conditions" onPress={() => alert("Terms & Conditions coming soon")} colors={colors} />
+          <ProfileRow icon="shield.fill" label="Privacy Policy" onPress={() => alert("Privacy Policy coming soon")} colors={colors} />
         </View>
 
         {/* Subscription */}

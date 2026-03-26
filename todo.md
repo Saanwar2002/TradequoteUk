@@ -96,3 +96,7 @@
 - [x] Tradesperson availability calendar (set available dates/times)
 - [x] Display availability on profiles and job posting flow
 - [x] Availability slot management screen for tradespeople
+
+
+## Current Bugs
+- [x] Profile tab navigation — tabs under profile are not clickable
