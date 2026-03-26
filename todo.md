@@ -100,3 +100,12 @@
 
 ## Current Bugs
 - [x] Profile tab navigation — tabs under profile are not clickable
+
+## Profile Settings Screens to Build
+- [x] Edit Profile screen
+- [x] Privacy & Security screen
+- [x] Notification Preferences screen
+- [x] Payment Methods screen
+- [x] Help Centre screen
+- [ ] Terms & Conditions screen
+- [ ] Privacy Policy screen
