@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "public": true,
+  "name": "tradequote-uk",
+  "builds": [
+    {
+      "src": "server/_core/index.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "server/_core/index.ts" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
