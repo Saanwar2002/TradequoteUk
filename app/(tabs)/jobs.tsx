@@ -1,4 +1,4 @@
-import { FlatList, Text, View, Pressable, StyleSheet, TextInput } from "react-native";
+import { FlatList, Text, View, Pressable, StyleSheet, TextInput, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
@@ -36,6 +36,7 @@ export default function JobsScreen() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [budgetFilter, setBudgetFilter] = useState<"all" | "under500" | "500to1000" | "1000plus">("all");
 
   const isHomeowner = !profile || profile.appRole === "homeowner";
 
@@ -49,6 +50,11 @@ export default function JobsScreen() {
   const filteredJobs = jobs.filter((j) => {
     const matchSearch = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.postcode.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
+    const maxBudget = typeof j.budgetMax === "string" ? parseInt(j.budgetMax) : (j.budgetMax ?? 0);
+    const minBudget = typeof j.budgetMin === "string" ? parseInt(j.budgetMin) : (j.budgetMin ?? 0);
+    if (budgetFilter === "under500" && maxBudget >= 500) return false;
+    if (budgetFilter === "500to1000" && (minBudget > 1000 || maxBudget < 500)) return false;
+    if (budgetFilter === "1000plus" && minBudget < 1000) return false;
     if (filter === "active") return ["open", "quoting", "accepted", "in_progress"].includes(j.status);
     if (filter === "completed") return ["completed", "cancelled"].includes(j.status);
     return true;
@@ -118,6 +124,23 @@ export default function JobsScreen() {
           </Pressable>
         ))}
       </View>
+
+      {/* Budget Filter for Tradespeople */}
+      {!isHomeowner && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.budgetFilterContainer} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
+          {(["all", "under500", "500to1000", "1000plus"] as const).map((b) => (
+            <Pressable
+              key={b}
+              style={[styles.budgetFilterBtn, { backgroundColor: budgetFilter === b ? colors.primary : colors.surface, borderColor: colors.border }]}
+              onPress={() => setBudgetFilter(b)}
+            >
+              <Text style={[styles.budgetFilterText, { color: budgetFilter === b ? "#fff" : colors.foreground }]}>
+                {b === "all" ? "All" : b === "under500" ? "<£500" : b === "500to1000" ? "£500-1k" : "£1k+"}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Tradesperson: My Quotes Summary */}
       {!isHomeowner && (myQuotes?.length ?? 0) > 0 && (
@@ -239,4 +262,7 @@ const styles = StyleSheet.create({
   budgetText: { fontSize: 12, fontWeight: "600" },
   expiryRow: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, padding: 8, borderWidth: 1 },
   expiryText: { fontSize: 12, fontWeight: "600" },
+  budgetFilterContainer: { paddingVertical: 4 },
+  budgetFilterBtn: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  budgetFilterText: { fontSize: 13, fontWeight: "600" },
 });

@@ -109,3 +109,10 @@
 - [x] Help Centre screen
 - [ ] Terms & Conditions screen
 - [ ] Privacy Policy screen
+
+
+## Tradesperson Job Discovery
+- [x] Verify Jobs tab shows "Available Jobs" for tradespeople
+- [x] Add better filtering (category, budget, urgency) for job search
+- [x] Add "Find Work" section to home screen for tradespeople
+- [x] Implement job search with postcode radius filter
