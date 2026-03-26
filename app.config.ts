@@ -32,7 +32,7 @@ const env = {
   appSlug: "tradequote-uk",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
+  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663477746299/3Q9CEa3cTyEZW32bcCWGQo/tradequote-icon-UMCnPXYBsRshG7X3V9WsGE.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
