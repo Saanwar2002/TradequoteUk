@@ -75,6 +75,8 @@ export const tradespersonProfiles = mysqlTable("tradesperson_profiles", {
   reputationScore: decimal("reputationScore", { precision: 5, scale: 2 }),
   strikes: int("strikes").default(0).notNull(),
   isSuspended: boolean("isSuspended").default(false).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -116,6 +118,11 @@ export const jobs = mysqlTable("jobs", {
   completedAt: timestamp("completedAt"),
   expiresAt: timestamp("expiresAt"),
   isBoosted: boolean("isBoosted").default(false).notNull(),
+  aiEstimatedMin: decimal("aiEstimatedMin", { precision: 10, scale: 2 }),
+  aiEstimatedMax: decimal("aiEstimatedMax", { precision: 10, scale: 2 }),
+  aiEstimationReasoning: text("aiEstimationReasoning"),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -204,6 +211,8 @@ export const progressUpdates = mysqlTable("progress_updates", {
   photoUrl: text("photoUrl"),
   isMilestone: boolean("isMilestone").default(false).notNull(),
   milestoneTitle: varchar("milestoneTitle", { length: 100 }),
+  milestoneStatus: mysqlEnum("milestoneStatus", ["pending", "completed", "verified"]).default("pending"),
+  verifiedAt: timestamp("verifiedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -262,11 +271,10 @@ export const availabilitySlots = mysqlTable("availability_slots", {
   date: varchar("date", { length: 10 }).notNull(),
   startTime: varchar("startTime", { length: 5 }).notNull(),
   endTime: varchar("endTime", { length: 5 }).notNull(),
-  isBooked: boolean("isBooked").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ─── Favourite Tradespeople ─────────────────────────────────────
+// ─── Favourites ───────────────────────────────────────────────────
 
 export const favourites = mysqlTable("favourites", {
   id: int("id").autoincrement().primaryKey(),
@@ -274,27 +282,3 @@ export const favourites = mysqlTable("favourites", {
   tradespersonId: int("tradespersonId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
-// ─── Types ──────────────────────────────────────────────────────────────────────
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-export type AppUser = typeof appUsers.$inferSelect;
-export type InsertAppUser = typeof appUsers.$inferInsert;
-export type HomeownerProfile = typeof homeownerProfiles.$inferSelect;
-export type TradespersonProfile = typeof tradespersonProfiles.$inferSelect;
-export type TradeCategory = typeof tradeCategories.$inferSelect;
-export type Job = typeof jobs.$inferSelect;
-export type InsertJob = typeof jobs.$inferInsert;
-export type JobPhoto = typeof jobPhotos.$inferSelect;
-export type Quote = typeof quotes.$inferSelect;
-export type InsertQuote = typeof quotes.$inferInsert;
-export type Conversation = typeof conversations.$inferSelect;
-export type Message = typeof messages.$inferSelect;
-export type InsertMessage = typeof messages.$inferInsert;
-export type Review = typeof reviews.$inferSelect;
-export type InsertReview = typeof reviews.$inferInsert;
-export type ProgressUpdate = typeof progressUpdates.$inferSelect;
-export type Notification = typeof notifications.$inferSelect;
-export type Credential = typeof credentials.$inferSelect;
-export type Favourite = typeof favourites.$inferSelect;

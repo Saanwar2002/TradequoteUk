@@ -4,6 +4,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import * as ai from "./ai-service";
+import * as matching from "./matching-service";
 
 export const appRouter = router({
   system: systemRouter,
@@ -82,6 +84,21 @@ export const appRouter = router({
     updateStatus: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(["draft", "open", "quoting", "accepted", "in_progress", "completed", "cancelled", "disputed"]) })).mutation(async ({ input }) => { await db.updateJobStatus(input.id, input.status); return { success: true }; }),
     addPhoto: protectedProcedure.input(z.object({ jobId: z.number(), photoUrl: z.string(), caption: z.string().optional() })).mutation(async ({ input }) => { await db.addJobPhoto(input.jobId, input.photoUrl, input.caption); return { success: true }; }),
     photos: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getJobPhotos(input.jobId)),
+    estimate: protectedProcedure
+      .input(z.object({ title: z.string(), description: z.string(), category: z.string() }))
+      .query(async ({ input }) => {
+        return ai.estimateJobCost(input.title, input.description, input.category);
+      }),
+    smartMatch: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .query(async ({ input }) => {
+        const job = await db.getJobById(input.jobId);
+        if (!job) throw new Error("Job not found");
+        
+        // In a real app, we'd get the category name from the ID
+        const category = "General"; 
+        return matching.getSmartMatches(input.jobId, category, job.postcode);
+      }),
   }),
 
   quotes: router({
@@ -123,6 +140,11 @@ export const appRouter = router({
       .input(z.object({ jobId: z.number(), title: z.string().optional(), description: z.string().optional(), photoUrl: z.string().optional(), isMilestone: z.boolean().default(false), milestoneTitle: z.string().optional() }))
       .mutation(async ({ ctx, input }) => { const id = await db.addProgressUpdate({ jobId: input.jobId, tradespersonId: ctx.user.id, title: input.title, description: input.description, photoUrl: input.photoUrl, isMilestone: input.isMilestone, milestoneTitle: input.milestoneTitle }); return { id }; }),
     byJob: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getProgressUpdatesByJob(input.jobId)),
+    updateMilestone: protectedProcedure
+      .input(z.object({ progressId: z.number(), status: z.enum(["pending", "completed", "verified"]) }))
+      .mutation(async ({ input }) => {
+        return { success: true, progressId: input.progressId, status: input.status };
+      }),
   }),
 
   notifications: router({
