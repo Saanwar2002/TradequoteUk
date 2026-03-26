@@ -8,6 +8,7 @@ import {
   credentials,
   favourites,
   homeownerProfiles,
+  jobAlerts,
   jobPhotos,
   jobs,
   messages,
@@ -392,4 +393,28 @@ export async function removeAvailabilitySlot(slotId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(availabilitySlots).where(eq(availabilitySlots.id, slotId));
+}
+
+
+// ─── Job Alerts ─────────────────────────────────────────────────────────────────
+export async function getJobAlertsByTradesperson(tradespersonId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(jobAlerts).where(eq(jobAlerts.tradespersonId, tradespersonId));
+}
+export async function createJobAlert(data: { tradespersonId: number; tradeCategory: string; postcode: string; radiusMiles: number; minBudget?: number; maxBudget?: number; enabled: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(jobAlerts).values(data);
+  return result[0].insertId;
+}
+export async function updateJobAlert(alertId: number, updates: { enabled?: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(jobAlerts).set(updates).where(eq(jobAlerts.id, alertId));
+}
+export async function deleteJobAlert(alertId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(jobAlerts).where(eq(jobAlerts.id, alertId));
 }

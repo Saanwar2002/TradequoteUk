@@ -145,6 +145,9 @@ export default function ProfileScreen() {
           <ProfileRow icon="person.fill" label="Edit Profile" onPress={() => router.push("/settings/edit-profile" as any)} colors={colors} />
           <ProfileRow icon="lock.fill" label="Privacy & Security" onPress={() => router.push("/settings/privacy-security" as any)} colors={colors} />
           <ProfileRow icon="bell.fill" label="Notification Preferences" onPress={() => router.push("/settings/notifications" as any)} colors={colors} />
+          {profile?.appRole === "tradesperson" && (
+            <ProfileRow icon="bell.badge.fill" label="Job Alerts" onPress={() => router.push("/job-alerts" as any)} colors={colors} />
+          )}
           <ProfileRow icon="creditcard.fill" label="Payment Methods" onPress={() => router.push("/settings/payment-methods" as any)} colors={colors} />
         </View>
 

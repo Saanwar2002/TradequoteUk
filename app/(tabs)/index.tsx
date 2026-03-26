@@ -1,5 +1,6 @@
-import { ScrollView, Text, View, Pressable, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { ScrollView, Text, View, Pressable, StyleSheet, FlatList } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -28,6 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAppContext();
   const { user } = useAuth();
+  const params = useLocalSearchParams();
 
   const { data: jobs } = trpc.jobs.myJobs.useQuery(undefined, { enabled: !!user });
   const { data: openJobs } = trpc.jobs.openJobs.useQuery(undefined, { enabled: !!user });
@@ -115,14 +117,40 @@ export default function HomeScreen() {
               <IconSymbol name="chevron.right" size={18} color="#fff" />
             </Pressable>
           ) : (
-            <Pressable
-              style={({ pressed }) => [styles.postJobBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push("/(tabs)/jobs" as any)}
-            >
-              <IconSymbol name="magnifyingglass" size={22} color="#fff" />
-              <Text style={styles.postJobText}>Browse Available Jobs</Text>
-              <IconSymbol name="chevron.right" size={18} color="#fff" />
-            </Pressable>
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.postJobBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => router.push("/(tabs)/jobs" as any)}
+              >
+                <IconSymbol name="magnifyingglass" size={22} color="#fff" />
+                <Text style={styles.postJobText}>Browse Available Jobs</Text>
+                <IconSymbol name="chevron.right" size={18} color="#fff" />
+              </Pressable>
+
+              {/* Find Work Stats Card */}
+              <View style={[styles.findWorkCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={styles.findWorkHeader}>
+                  <Text style={[styles.findWorkTitle, { color: colors.foreground }]}>Find Work</Text>
+                  <IconSymbol name="briefcase.fill" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.findWorkStats}>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.primary }]}>{openJobs?.length ?? 0}</Text>
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>Available</Text>
+                  </View>
+                  <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.primary }]}>£0</Text>
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>Earnings</Text>
+                  </View>
+                  <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.primary }]}>0</Text>
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>Pending</Text>
+                  </View>
+                </View>
+              </View>
+            </>
           )}
 
           {/* Active Jobs */}
@@ -133,62 +161,66 @@ export default function HomeScreen() {
                 <Pressable
                   key={job.id}
                   style={({ pressed }) => [styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
-                  onPress={() => router.push({ pathname: "/job/[id]", params: { id: job.id } } as any)}
+                  onPress={() => router.push(`/job/${job.id}` as any)}
                 >
                   <View style={styles.jobCardHeader}>
                     <Text style={[styles.jobTitle, { color: colors.foreground }]} numberOfLines={1}>{job.title}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status, colors) + "20" }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(job.status, colors) }]}>{formatStatus(job.status)}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) }]}>
+                      <Text style={styles.statusText}>{formatStatus(job.status)}</Text>
                     </View>
                   </View>
+                  <Text style={[styles.jobDescText, { color: colors.muted }]} numberOfLines={1}>{job.description}</Text>
                   <View style={styles.jobMeta}>
-                    <IconSymbol name="location.fill" size={12} color={colors.muted} />
-                    <Text style={[styles.jobMetaText, { color: colors.muted }]}>{job.postcode}</Text>
-                    <Text style={[styles.jobMetaDot, { color: colors.muted }]}>·</Text>
-                    <IconSymbol name="text.bubble.fill" size={12} color={colors.muted} />
-                    <Text style={[styles.jobMetaText, { color: colors.muted }]}>{job.quoteCount} quotes</Text>
+                    <View style={styles.metaItem}>
+                      <IconSymbol name="location.fill" size={12} color={colors.muted} />
+                      <Text style={[styles.jobMetaText, { color: colors.muted }]}>{job.postcode}</Text>
+                    </View>
+                    <Text style={[styles.jobMetaDot, { color: colors.muted }]}>•</Text>
+                    <View style={styles.metaItem}>
+                      <IconSymbol name="creditcard.fill" size={12} color={colors.muted} />
+                      <Text style={[styles.jobMetaText, { color: colors.muted }]}>£{job.budgetMin}-{job.budgetMax}</Text>
+                    </View>
                   </View>
                 </Pressable>
               ))}
               {activeJobs.length > 3 && (
                 <Pressable onPress={() => router.push("/(tabs)/jobs" as any)}>
-                  <Text style={[styles.viewAll, { color: colors.primary }]}>View all {activeJobs.length} jobs →</Text>
+                  <Text style={[styles.viewAll, { color: colors.primary }]}>View all jobs →</Text>
                 </Pressable>
               )}
             </View>
           )}
 
           {/* Trade Categories */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {isHomeowner ? "What do you need?" : "Browse by Trade"}
-            </Text>
-            <View style={styles.categoryGrid}>
-              {TRADE_CATEGORIES.map((cat) => (
-                <Pressable
-                  key={cat.slug}
-                  style={({ pressed }) => [styles.categoryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
-                  onPress={() => isHomeowner ? router.push("/job/post" as any) : router.push("/(tabs)/jobs" as any)}
-                >
-                  <IconSymbol name={cat.icon} size={24} color={colors.primary} />
-                  <Text style={[styles.categoryName, { color: colors.foreground }]}>{cat.name}</Text>
-                </Pressable>
-              ))}
+          {isHomeowner && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Browse by Trade</Text>
+              <View style={styles.categoryGrid}>
+                {TRADE_CATEGORIES.map((cat) => (
+                  <Pressable
+                    key={cat.slug}
+                    style={({ pressed }) => [styles.categoryCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }]}
+                    onPress={() => router.push(`/job/post?category=${cat.slug}` as any)}
+                  >
+                    <IconSymbol name={cat.icon} size={24} color={colors.primary} />
+                    <Text style={[styles.categoryName, { color: colors.foreground }]}>{cat.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
-          {/* Emergency Banner - Only for homeowners */}
+          {/* Emergency Banner */}
           {isHomeowner && (
             <Pressable
-              style={({ pressed }) => [styles.emergencyBanner, { opacity: pressed ? 0.9 : 1 }]}
-              onPress={() => router.push({ pathname: "/job/post", params: { emergency: "true" } } as any)}
+              style={styles.emergencyBanner}
+              onPress={() => router.push("/job/post?emergency=true" as any)}
             >
-              <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#fff" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.emergencyTitle}>Emergency Call-Out</Text>
-                <Text style={styles.emergencyDesc}>Need urgent help? Get tradespeople within the hour.</Text>
+              <View>
+                <Text style={styles.emergencyTitle}>Need help urgently?</Text>
+                <Text style={styles.emergencyDesc}>Post an emergency job to get quotes within minutes</Text>
               </View>
-              <IconSymbol name="chevron.right" size={16} color="#fff" />
+              <IconSymbol name="chevron.right" size={20} color="#fff" />
             </Pressable>
           )}
         </View>
@@ -197,7 +229,8 @@ export default function HomeScreen() {
   );
 }
 
-function getStatusColor(status: string, colors: any) {
+function getStatusColor(status: string) {
+  const colors = useColors();
   switch (status) {
     case "open": return colors.primary;
     case "quoting": return colors.warning;
@@ -240,8 +273,9 @@ const styles = StyleSheet.create({
   jobCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 8 },
   jobCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   jobTitle: { fontSize: 15, fontWeight: "600", flex: 1 },
+  jobDescText: { fontSize: 13, lineHeight: 18 },
   statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  statusText: { fontSize: 11, fontWeight: "700" },
+  statusText: { fontSize: 11, fontWeight: "700", color: "#fff" },
   jobMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
   jobMetaText: { fontSize: 12 },
   jobMetaDot: { fontSize: 12 },
@@ -250,6 +284,15 @@ const styles = StyleSheet.create({
   categoryCard: { width: "30%", borderRadius: 14, padding: 12, alignItems: "center", gap: 6, borderWidth: 1 },
   categoryName: { fontSize: 11, fontWeight: "600", textAlign: "center" },
   emergencyBanner: { backgroundColor: "#DC2626", borderRadius: 16, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
-  emergencyTitle: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  emergencyDesc: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 },
+  emergencyTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  emergencyDesc: { color: "rgba(255,255,255,0.9)", fontSize: 13, marginTop: 4 },
+  findWorkCard: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 12 },
+  findWorkHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  findWorkTitle: { fontSize: 16, fontWeight: "700" },
+  findWorkStats: { flexDirection: "row", justifyContent: "space-around", alignItems: "center" },
+  statItem: { alignItems: "center", gap: 4 },
+  statValue: { fontSize: 18, fontWeight: "700" },
+  statLabel: { fontSize: 11, fontWeight: "500" },
+  statDivider: { width: 1, height: 30 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
 });

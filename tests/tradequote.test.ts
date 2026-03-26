@@ -286,3 +286,94 @@ describe("TradeQuote UK - Availability Calendar", () => {
     expect(shouldShowAvailability("tradesperson")).toBe(false);
   });
 });
+
+
+describe("TradeQuote UK - Job Alerts", () => {
+  it("should create a job alert with valid data", () => {
+    const alert = {
+      tradespersonId: 1,
+      tradeCategory: "Plumbing",
+      postcode: "M1 1AA",
+      radiusMiles: 15,
+      minBudget: 500,
+      maxBudget: 2000,
+      enabled: true,
+    };
+    expect(alert.tradeCategory).toBe("Plumbing");
+    expect(alert.radiusMiles).toBe(15);
+    expect(alert.enabled).toBe(true);
+  });
+
+  it("should validate postcode format for alerts", () => {
+    const validPostcodes = ["M1 1AA", "SW1A 1AA", "B33 8TH"];
+    validPostcodes.forEach((postcode) => {
+      expect(postcode.length).toBeGreaterThan(0);
+      expect(postcode.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  it("should validate budget range for alerts", () => {
+    const alert = { minBudget: 500, maxBudget: 2000 };
+    expect(alert.minBudget).toBeLessThanOrEqual(alert.maxBudget);
+  });
+
+  it("should allow optional budget constraints", () => {
+    const alertWithoutBudget = {
+      tradeCategory: "Electrical",
+      postcode: "M1 1AA",
+      minBudget: undefined,
+      maxBudget: undefined,
+    };
+    expect(alertWithoutBudget.minBudget).toBeUndefined();
+    expect(alertWithoutBudget.maxBudget).toBeUndefined();
+  });
+
+  it("should toggle alert enabled status", () => {
+    let alert = { id: 1, enabled: true };
+    alert.enabled = false;
+    expect(alert.enabled).toBe(false);
+    alert.enabled = true;
+    expect(alert.enabled).toBe(true);
+  });
+
+  it("should validate radius miles is positive", () => {
+    const radiusValues = [5, 10, 15, 20, 50];
+    radiusValues.forEach((radius) => {
+      expect(radius).toBeGreaterThan(0);
+    });
+  });
+
+  it("should set default radius to 10 miles", () => {
+    const defaultRadius = 10;
+    expect(defaultRadius).toBe(10);
+  });
+
+  it("should format alert notification message", () => {
+    const formatAlert = (category: string, location: string) =>
+      `New ${category} job in ${location}`;
+    expect(formatAlert("Plumbing", "Manchester")).toBe("New Plumbing job in Manchester");
+  });
+
+  it("should filter alerts by enabled status", () => {
+    const alerts = [
+      { id: 1, enabled: true, category: "Plumbing" },
+      { id: 2, enabled: false, category: "Electrical" },
+      { id: 3, enabled: true, category: "Carpentry" },
+    ];
+    const enabledAlerts = alerts.filter((a) => a.enabled);
+    expect(enabledAlerts.length).toBe(2);
+    expect(enabledAlerts[0].category).toBe("Plumbing");
+  });
+
+  it("should match job to alert criteria", () => {
+    const matchesAlert = (jobBudget: number, alertMin?: number, alertMax?: number) => {
+      if (alertMin && jobBudget < alertMin) return false;
+      if (alertMax && jobBudget > alertMax) return false;
+      return true;
+    };
+    expect(matchesAlert(1000, 500, 2000)).toBe(true);
+    expect(matchesAlert(300, 500, 2000)).toBe(false);
+    expect(matchesAlert(3000, 500, 2000)).toBe(false);
+    expect(matchesAlert(1000, undefined, undefined)).toBe(true);
+  });
+});

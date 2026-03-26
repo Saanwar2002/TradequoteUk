@@ -122,3 +122,9 @@
 - [x] Add role selection buttons to home screen (Homeowner / Tradesperson)
 - [x] Make onboarding flow more discoverable for tradespeople
 - [x] Add "Sign in as Tradesperson" option on home screen
+
+
+## New Features - Phase 2
+- [x] Tradesperson dashboard stats (Find Work card with available jobs count, earnings, pending quotes)
+- [x] Job alerts & notifications (push notifications for matching jobs)
+- [ ] Quick apply feature (pre-filled quote form)

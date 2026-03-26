@@ -150,6 +150,16 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => { const id = await db.addAvailabilitySlot({ tradespersonId: ctx.user.id, date: input.date, startTime: input.startTime, endTime: input.endTime }); return { id }; }),
     remove: protectedProcedure.input(z.object({ slotId: z.number() })).mutation(async ({ input }) => { await db.removeAvailabilitySlot(input.slotId); return { success: true }; }),
   }),
+  jobAlerts: router({
+    list: protectedProcedure.query(async ({ ctx }) => db.getJobAlertsByTradesperson(ctx.user.id)),
+    create: protectedProcedure
+      .input(z.object({ tradeCategory: z.string(), postcode: z.string(), radiusMiles: z.number().default(10), minBudget: z.number().optional(), maxBudget: z.number().optional(), enabled: z.boolean().default(true) }))
+      .mutation(async ({ ctx, input }) => { const id = await db.createJobAlert({ tradespersonId: ctx.user.id, ...input }); return { id }; }),
+    update: protectedProcedure
+      .input(z.object({ alertId: z.number(), enabled: z.boolean().optional() }))
+      .mutation(async ({ input }) => { await db.updateJobAlert(input.alertId, { enabled: input.enabled }); return { success: true }; }),
+    delete: protectedProcedure.input(z.object({ alertId: z.number() })).mutation(async ({ input }) => { await db.deleteJobAlert(input.alertId); return { success: true }; }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

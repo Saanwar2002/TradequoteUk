@@ -240,7 +240,21 @@ export const credentials = mysqlTable("credentials", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// ─── F// ─── Availability Slots ────────────────────────────────────────────
+// ─── Job Alerts ────────────────────────────────────────────────────────────────
+
+export const jobAlerts = mysqlTable("job_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  tradespersonId: int("tradespersonId").notNull(),
+  tradeCategory: varchar("tradeCategory", { length: 100 }).notNull(),
+  postcode: varchar("postcode", { length: 10 }).notNull(),
+  radiusMiles: int("radiusMiles").default(10).notNull(),
+  minBudget: int("minBudget"),
+  maxBudget: int("maxBudget"),
+  enabled: boolean("enabled").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ─── Availability Slots ────────────────────────────────────────────
 
 export const availabilitySlots = mysqlTable("availability_slots", {
   id: int("id").autoincrement().primaryKey(),
