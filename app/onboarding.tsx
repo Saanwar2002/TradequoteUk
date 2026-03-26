@@ -1,6 +1,6 @@
 import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useState, useEffect } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -17,8 +17,16 @@ export default function OnboardingScreen() {
   const { user } = useAuth();
   const { setProfile } = useAppContext();
 
+  const params = useLocalSearchParams();
   const [step, setStep] = useState<Step>("welcome");
   const [role, setRole] = useState<AppRole>("homeowner");
+
+  useEffect(() => {
+    if (user && params.role && (params.role === "homeowner" || params.role === "tradesperson")) {
+      setRole(params.role as AppRole);
+      setStep("details");
+    }
+  }, [user, params.role]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");

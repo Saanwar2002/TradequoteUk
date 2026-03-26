@@ -116,3 +116,9 @@
 - [x] Add better filtering (category, budget, urgency) for job search
 - [x] Add "Find Work" section to home screen for tradespeople
 - [x] Implement job search with postcode radius filter
+
+
+## Sign-In & Onboarding Improvements
+- [x] Add role selection buttons to home screen (Homeowner / Tradesperson)
+- [x] Make onboarding flow more discoverable for tradespeople
+- [x] Add "Sign in as Tradesperson" option on home screen

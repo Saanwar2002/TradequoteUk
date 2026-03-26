@@ -50,13 +50,22 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.ctaRow}>
-        <Pressable
-          style={({ pressed }) => [styles.ctaBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-          onPress={() => startOAuthLogin()}
-        >
-          <Text style={styles.ctaBtnText}>Get Started</Text>
-        </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.ctaBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => router.push("/onboarding?role=homeowner" as any)}
+            >
+              <Text style={styles.ctaBtnText}>I'm a Homeowner</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.ctaBtn, { backgroundColor: colors.surface, borderColor: colors.primary, borderWidth: 2, opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => router.push("/onboarding?role=tradesperson" as any)}
+            >
+              <Text style={[styles.ctaBtnText, { color: colors.primary }]}>I'm a Tradesperson</Text>
+            </Pressable>
           </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.muted }]}>Why choose TradeQuote?</Text>
 
           <View style={styles.featureGrid}>
             {[
@@ -208,9 +217,11 @@ const styles = StyleSheet.create({
   logoMark: { width: 72, height: 72, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   heroTitle: { fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
   heroSubtitle: { fontSize: 16, textAlign: "center", lineHeight: 24, paddingHorizontal: 20 },
-  ctaRow: { paddingHorizontal: 20, marginBottom: 32 },
+  ctaRow: { paddingHorizontal: 20, marginBottom: 32, gap: 12 },
   ctaBtn: { borderRadius: 14, paddingVertical: 16, alignItems: "center" },
   ctaBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  divider: { height: 1, marginVertical: 24 },
+  dividerText: { fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 16 },
   ctaPrimary: { borderRadius: 14, paddingVertical: 16, alignItems: "center" },
   ctaPrimaryText: { color: "#fff", fontSize: 17, fontWeight: "700" },
   featureGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 20, paddingBottom: 40 },
