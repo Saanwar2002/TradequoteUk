@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, Pressable, StyleSheet, FlatList, Alert } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet, FlatList, Alert, Image } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -19,6 +19,7 @@ export default function JobDetailScreen() {
   const { data: job, isLoading } = trpc.jobs.get.useQuery({ id: parseInt(id) }, { enabled: !!id });
   const { data: quotes } = trpc.quotes.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
   const { data: progressUpdates } = trpc.progress.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
+  const { data: media } = trpc.jobs.getMedia.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
 
   const acceptQuote = trpc.quotes.accept.useMutation({
     onSuccess: () => {
@@ -105,6 +106,28 @@ export default function JobDetailScreen() {
             <Text style={[styles.description, { color: colors.foreground }]}>{job.description}</Text>
           </View>
 
+          {/* Job Media (Photos & Videos) */}
+          {((media?.photos && media.photos.length > 0) || (media?.videos && media.videos.length > 0)) && (
+            <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 12 }]}>Job Media</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                {media.videos?.map((video: any) => (
+                  <Pressable key={video.id} style={styles.mediaCard}>
+                    <Image source={{ uri: video.thumbnailUrl || "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=500" }} style={styles.mediaImage} />
+                    <View style={styles.playOverlay}>
+                      <IconSymbol name="play.fill" size={24} color="#fff" />
+                    </View>
+                  </Pressable>
+                ))}
+                {media.photos?.map((photo: any) => (
+                  <Pressable key={photo.id} style={styles.mediaCard}>
+                    <Image source={{ uri: photo.photoUrl }} style={styles.mediaImage} />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Project Timeline / AI Checklist */}
           {progressUpdates && progressUpdates.length > 0 && (
             <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, padding: 0, overflow: "hidden" }]}>
@@ -156,12 +179,6 @@ export default function JobDetailScreen() {
                   <Text style={styles.submitQuoteBtnText}>Submit Quote</Text>
                 </Pressable>
               )}
-              {canQuote && alreadyQuoted && (
-                <View style={[styles.alreadyQuotedBadge, { backgroundColor: colors.success + "20" }]}>
-                  <IconSymbol name="checkmark.circle.fill" size={14} color={colors.success} />
-                  <Text style={[{ fontSize: 12, fontWeight: "600" }, { color: colors.success }]}>Quoted</Text>
-                </View>
-              )}
             </View>
 
             {(!quotes || quotes.length === 0) ? (
@@ -184,23 +201,12 @@ export default function JobDetailScreen() {
                           <Text style={[styles.quoteTradeName, { color: colors.foreground }]}>
                             Tradesperson #{quote.tradespersonId}
                           </Text>
-                          {quote.isBoosted && (
-                            <View style={[styles.boostedBadge, { backgroundColor: colors.warning + "20" }]}>
-                              <Text style={[{ fontSize: 10, fontWeight: "700" }, { color: colors.warning }]}>⚡ Featured</Text>
-                            </View>
-                          )}
                         </View>
                       </View>
                       <Text style={[styles.quotePrice, { color: colors.primary }]}>£{parseFloat(quote.priceGbp).toFixed(2)}</Text>
                     </View>
                     {quote.message && (
                       <Text style={[styles.quoteMessage, { color: colors.foreground }]} numberOfLines={3}>{quote.message}</Text>
-                    )}
-                    {quote.timelineText && (
-                      <View style={styles.metaItem}>
-                        <IconSymbol name="clock.fill" size={12} color={colors.muted} />
-                        <Text style={[{ fontSize: 12 }, { color: colors.muted }]}>{quote.timelineText}</Text>
-                      </View>
                     )}
                     {isHomeowner && job.status === "open" && quote.status === "pending" && (
                       <View style={styles.quoteActions}>
@@ -215,20 +221,6 @@ export default function JobDetailScreen() {
                         >
                           <Text style={styles.acceptBtnText}>Accept Quote</Text>
                         </Pressable>
-                        <Pressable
-                          style={({ pressed }) => [styles.messageBtn, { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-                          onPress={() => {}}
-                        >
-                          <IconSymbol name="message.fill" size={14} color={colors.primary} />
-                          <Text style={[styles.messageBtnText, { color: colors.primary }]}>Message</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                    {quote.status !== "pending" && (
-                      <View style={[styles.quoteStatusBadge, { backgroundColor: getQuoteStatusColor(quote.status, colors) + "20" }]}>
-                        <Text style={[{ fontSize: 11, fontWeight: "700" }, { color: getQuoteStatusColor(quote.status, colors) }]}>
-                          {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
-                        </Text>
                       </View>
                     )}
                   </View>
@@ -245,62 +237,52 @@ export default function JobDetailScreen() {
 function getStatusColor(status: string, colors: any) {
   switch (status) {
     case "open": return colors.primary;
-    case "quoting": return colors.warning;
-    case "accepted": return colors.success;
-    case "in_progress": return "#8B5CF6";
+    case "accepted":
+    case "in_progress": return colors.warning;
     case "completed": return colors.success;
-    case "cancelled": return colors.error;
-    default: return colors.muted;
-  }
-}
-
-function getQuoteStatusColor(status: string, colors: any) {
-  switch (status) {
-    case "accepted": return colors.success;
-    case "rejected": return colors.error;
+    case "cancelled":
+    case "disputed": return colors.error;
     default: return colors.muted;
   }
 }
 
 function formatStatus(status: string) {
-  return status.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase());
+  return status.split("_").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 0.5 },
-  headerTitle: { fontSize: 17, fontWeight: "700", flex: 1, textAlign: "center" },
+  header: { height: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
   content: { padding: 16, gap: 16 },
-  jobHeader: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 10 },
-  jobHeaderTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
-  jobTitle: { fontSize: 20, fontWeight: "800", flex: 1, lineHeight: 26 },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  jobHeader: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 12 },
+  jobHeaderTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  jobTitle: { fontSize: 20, fontWeight: "800", flex: 1 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusText: { fontSize: 12, fontWeight: "700" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { fontSize: 13 },
   urgencyBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  section: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 10 },
-  sectionTitle: { fontSize: 17, fontWeight: "700" },
-  description: { fontSize: 15, lineHeight: 24 },
+  section: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "700" },
+  description: { fontSize: 15, lineHeight: 22 },
+  mediaCard: { width: 140, height: 140, borderRadius: 12, overflow: "hidden", position: "relative" },
+  mediaImage: { width: "100%", height: "100%", borderRadius: 12 },
+  playOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.3)", alignItems: "center", justifyContent: "center" },
   quotesSection: { gap: 12 },
   quotesSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   submitQuoteBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   submitQuoteBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  alreadyQuotedBadge: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  emptyQuotes: { borderRadius: 14, padding: 24, borderWidth: 1, alignItems: "center", gap: 8 },
-  emptyQuotesText: { fontSize: 14, textAlign: "center", lineHeight: 20 },
-  quoteCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 10 },
+  emptyQuotes: { padding: 32, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", alignItems: "center", gap: 12 },
+  emptyQuotesText: { textAlign: "center", fontSize: 14 },
+  quoteCard: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 12 },
   quoteHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   quoteTradeInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
   quoteAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  quoteTradeName: { fontSize: 14, fontWeight: "700" },
-  boostedBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
-  quotePrice: { fontSize: 22, fontWeight: "800" },
+  quoteTradeName: { fontSize: 15, fontWeight: "700" },
+  quotePrice: { fontSize: 18, fontWeight: "800" },
   quoteMessage: { fontSize: 14, lineHeight: 20 },
-  quoteActions: { flexDirection: "row", gap: 10 },
-  acceptBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  quoteActions: { flexDirection: "row", gap: 10, marginTop: 4 },
+  acceptBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   acceptBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  messageBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1.5 },
-  messageBtnText: { fontSize: 14, fontWeight: "600" },
-  quoteStatusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: "flex-start" },
 });

@@ -1,81 +1,95 @@
 import { z } from "zod";
-import { COOKIE_NAME } from "../shared/const.js";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { router, protectedProcedure, publicProcedure } from "./_core/index";
 import * as db from "./db";
 import * as ai from "./ai-service";
 import * as matching from "./matching-service";
 
 export const appRouter = router({
-  system: systemRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
+    me: protectedProcedure.query(({ ctx }) => ctx.user),
+    profile: protectedProcedure.query(async ({ ctx }) => {
+      const appUser = await db.getAppUserByUserId(ctx.user.id);
+      if (!appUser) return null;
+      const homeowner = await db.getHomeownerProfile(ctx.user.id);
+      const tradesperson = await db.getTradespersonProfile(ctx.user.id);
+      return {
+        ...appUser,
+        homeowner,
+        tradesperson,
+      };
     }),
-  }),
-
-  seed: publicProcedure.mutation(async () => {
-    await db.seedTradeCategories();
-    return { success: true };
-  }),
-
-  profile: router({
-    get: protectedProcedure.query(async ({ ctx }) => {
-      return db.getAppUserByUserId(ctx.user.id);
-    }),
-    setup: protectedProcedure
+    updateProfile: protectedProcedure
       .input(z.object({
-        appRole: z.enum(["homeowner", "tradesperson"]),
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
         phone: z.string().optional(),
-        postcode: z.string().min(2).max(10),
-        propertyType: z.enum(["house", "flat", "bungalow", "commercial", "other"]).optional(),
-        businessName: z.string().optional(),
-        bio: z.string().optional(),
-        yearsExperience: z.number().optional(),
-        serviceRadiusMiles: z.number().default(10),
+        postcode: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const existing = await db.getAppUserByUserId(ctx.user.id);
-        if (existing) {
-          await db.updateAppUser(ctx.user.id, { firstName: input.firstName, lastName: input.lastName, phone: input.phone, postcode: input.postcode });
+        await db.updateAppUser(ctx.user.id, input);
+        return { success: true };
+      }),
+    onboard: protectedProcedure
+      .input(z.object({
+        appRole: z.enum(["homeowner", "tradesperson"]),
+        firstName: z.string(),
+        lastName: z.string(),
+        postcode: z.string(),
+        businessName: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { appRole, firstName, lastName, postcode, businessName } = input;
+        await db.createAppUser({
+          userId: ctx.user.id,
+          appRole,
+          firstName,
+          lastName,
+          postcode,
+        });
+        if (appRole === "homeowner") {
+          await db.createHomeownerProfile(ctx.user.id, "house");
         } else {
-          await db.createAppUser({ userId: ctx.user.id, appRole: input.appRole, firstName: input.firstName, lastName: input.lastName, phone: input.phone, postcode: input.postcode });
-        }
-        if (input.appRole === "homeowner" && input.propertyType) {
-          const hp = await db.getHomeownerProfile(ctx.user.id);
-          if (!hp) await db.createHomeownerProfile(ctx.user.id, input.propertyType);
-        }
-        if (input.appRole === "tradesperson") {
-          const tp = await db.getTradespersonProfile(ctx.user.id);
-          if (!tp) await db.createTradespersonProfile(ctx.user.id, { businessName: input.businessName, bio: input.bio, yearsExperience: input.yearsExperience, serviceRadiusMiles: input.serviceRadiusMiles });
+          await db.createTradespersonProfile(ctx.user.id, { businessName });
         }
         return { success: true };
       }),
-    update: protectedProcedure
-      .input(z.object({ firstName: z.string().optional(), lastName: z.string().optional(), phone: z.string().optional(), postcode: z.string().optional(), profilePhotoUrl: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => { await db.updateAppUser(ctx.user.id, input); return { success: true }; }),
-    getTradesperson: protectedProcedure.query(async ({ ctx }) => db.getTradespersonProfile(ctx.user.id)),
-    updateTradesperson: protectedProcedure
-      .input(z.object({ businessName: z.string().optional(), bio: z.string().optional(), yearsExperience: z.number().optional(), serviceRadiusMiles: z.number().optional(), emergencyAvailable: z.boolean().optional(), ecoCertified: z.boolean().optional() }))
-      .mutation(async ({ ctx, input }) => { await db.updateTradespersonProfile(ctx.user.id, input); return { success: true }; }),
-  }),
-
-  categories: router({
-    list: publicProcedure.query(async () => db.getTradeCategories()),
   }),
 
   jobs: router({
     create: protectedProcedure
-      .input(z.object({ tradeCategoryId: z.number(), title: z.string().min(5), description: z.string().min(10), postcode: z.string().min(2), urgency: z.enum(["normal", "urgent", "emergency"]).default("normal"), budgetMin: z.number().optional(), budgetMax: z.number().optional(), budgetNotSure: z.boolean().default(false), preferredStartDate: z.string().optional(), isGroupJob: z.boolean().default(false), isEmergency: z.boolean().default(false), isBoosted: z.boolean().default(false) }))
+      .input(z.object({
+        tradeCategoryId: z.number(),
+        title: z.string().min(5),
+        description: z.string().min(10),
+        postcode: z.string().min(2),
+        urgency: z.enum(["normal", "urgent", "emergency"]).default("normal"),
+        budgetMin: z.number().optional(),
+        budgetMax: z.number().optional(),
+        budgetNotSure: z.boolean().default(false),
+        preferredStartDate: z.string().optional(),
+        isGroupJob: z.boolean().default(false),
+        isEmergency: z.boolean().default(false),
+        isBoosted: z.boolean().default(false)
+      }))
       .mutation(async ({ ctx, input }) => {
         const expiresAt = input.urgency === "emergency" ? new Date(Date.now() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const jobId = await db.createJob({ homeownerId: ctx.user.id, tradeCategoryId: input.tradeCategoryId, title: input.title, description: input.description, postcode: input.postcode, urgency: input.urgency, budgetMin: input.budgetMin?.toString(), budgetMax: input.budgetMax?.toString(), budgetNotSure: input.budgetNotSure, preferredStartDate: input.preferredStartDate ? new Date(input.preferredStartDate) : undefined, isGroupJob: input.isGroupJob, isEmergency: input.isEmergency, isBoosted: input.isBoosted, expiresAt, status: "open" });
+        const jobId = await db.createJob({
+          homeownerId: ctx.user.id,
+          tradeCategoryId: input.tradeCategoryId,
+          title: input.title,
+          description: input.description,
+          postcode: input.postcode,
+          urgency: input.urgency,
+          budgetMin: input.budgetMin?.toString(),
+          budgetMax: input.budgetMax?.toString(),
+          budgetNotSure: input.budgetNotSure,
+          preferredStartDate: input.preferredStartDate ? new Date(input.preferredStartDate) : undefined,
+          isGroupJob: input.isGroupJob,
+          isEmergency: input.isEmergency,
+          isBoosted: input.isBoosted,
+          expiresAt,
+          status: "open"
+        });
         
         // Generate and save AI checklist
         try {
@@ -94,106 +108,113 @@ export const appRouter = router({
     myJobs: protectedProcedure.query(async ({ ctx }) => db.getJobsByHomeowner(ctx.user.id)),
     openJobs: protectedProcedure.query(async () => db.getOpenJobs(30)),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => db.getJobById(input.id)),
-    updateStatus: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(["draft", "open", "quoting", "accepted", "in_progress", "completed", "cancelled", "disputed"]) })).mutation(async ({ input }) => { await db.updateJobStatus(input.id, input.status); return { success: true }; }),
-    addPhoto: protectedProcedure.input(z.object({ jobId: z.number(), photoUrl: z.string(), caption: z.string().optional() })).mutation(async ({ input }) => { await db.addJobPhoto(input.jobId, input.photoUrl, input.caption); return { success: true }; }),
-    photos: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getJobPhotos(input.jobId)),
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["draft", "open", "quoting", "accepted", "in_progress", "completed", "cancelled", "disputed"])
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateJobStatus(input.id, input.status);
+        return { success: true };
+      }),
+    addMedia: protectedProcedure
+      .input(z.object({
+        jobId: z.number(),
+        type: z.enum(["photo", "video"]),
+        url: z.string().url(),
+        thumbnailUrl: z.string().url().optional(),
+        caption: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        if (input.type === "photo") {
+          await db.addJobPhoto(input.jobId, input.url, input.caption);
+        } else {
+          await db.addJobVideo(input.jobId, input.url, input.thumbnailUrl, input.caption);
+        }
+        return { success: true };
+      }),
+    getMedia: protectedProcedure
+      .input(z.object({ jobId: z.number() }))
+      .query(async ({ input }) => {
+        const [photos, videos] = await Promise.all([
+          db.getJobPhotos(input.jobId),
+          db.getJobVideos(input.jobId),
+        ]);
+        return { photos, videos };
+      }),
     estimate: protectedProcedure
       .input(z.object({ title: z.string(), description: z.string(), category: z.string() }))
       .query(async ({ input }) => {
-        return ai.estimateJobCost(input.title, input.description, input.category);
-      }),
-    smartMatch: protectedProcedure
-      .input(z.object({ jobId: z.number() }))
-      .query(async ({ input }) => {
-        const job = await db.getJobById(input.jobId);
-        if (!job) throw new Error("Job not found");
-        
-        // In a real app, we'd get the category name from the ID
-        const category = "General"; 
-        return matching.getSmartMatches(input.jobId, category, job.postcode);
+        const estimate = await ai.getJobEstimate(input.title, input.description, input.category);
+        return estimate;
       }),
   }),
 
   quotes: router({
-    submit: protectedProcedure
-      .input(z.object({ jobId: z.number(), priceGbp: z.number().positive(), timelineDays: z.number().optional(), timelineText: z.string().optional(), message: z.string().optional(), isBoosted: z.boolean().default(false) }))
+    create: protectedProcedure
+      .input(z.object({
+        jobId: z.number(),
+        priceGbp: z.number(),
+        timelineDays: z.number().optional(),
+        timelineText: z.string().optional(),
+        message: z.string().optional(),
+      }))
       .mutation(async ({ ctx, input }) => {
-        const quoteId = await db.createQuote({ jobId: input.jobId, tradespersonId: ctx.user.id, priceGbp: input.priceGbp.toString(), timelineDays: input.timelineDays, timelineText: input.timelineText, message: input.message, isBoosted: input.isBoosted, boostPriceGbp: input.isBoosted ? "3.00" : undefined, status: "pending" });
+        const quoteId = await db.createQuote({
+          jobId: input.jobId,
+          tradespersonId: ctx.user.id,
+          priceGbp: input.priceGbp.toString(),
+          timelineDays: input.timelineDays,
+          timelineText: input.timelineText,
+          message: input.message,
+          status: "pending",
+        });
         return { quoteId };
       }),
     byJob: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getQuotesByJob(input.jobId)),
-    myQuotes: protectedProcedure.query(async ({ ctx }) => db.getQuotesByTradesperson(ctx.user.id)),
-    accept: protectedProcedure.input(z.object({ quoteId: z.number(), jobId: z.number() })).mutation(async ({ input }) => { await db.acceptQuote(input.quoteId, input.jobId); return { success: true }; }),
-    reject: protectedProcedure.input(z.object({ quoteId: z.number() })).mutation(async ({ input }) => { await db.updateQuoteStatus(input.quoteId, "rejected"); return { success: true }; }),
-  }),
-
-  messages: router({
-    conversations: protectedProcedure.query(async ({ ctx }) => db.getConversationsByUser(ctx.user.id)),
-    thread: protectedProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => db.getMessagesByConversation(input.conversationId)),
-    send: protectedProcedure
-      .input(z.object({ conversationId: z.number(), body: z.string().optional(), photoUrl: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => { const msgId = await db.sendMessage({ conversationId: input.conversationId, senderId: ctx.user.id, body: input.body, photoUrl: input.photoUrl }); return { msgId }; }),
-    startConversation: protectedProcedure
-      .input(z.object({ jobId: z.number(), homeownerId: z.number(), tradespersonId: z.number() }))
-      .mutation(async ({ input }) => { const convId = await db.getOrCreateConversation(input.jobId, input.homeownerId, input.tradespersonId); return { conversationId: convId }; }),
-  }),
-
-  reviews: router({
-    create: protectedProcedure
-      .input(z.object({ jobId: z.number(), revieweeId: z.number(), reviewerRole: z.enum(["homeowner", "tradesperson"]), overallRating: z.number().min(1).max(5), qualityRating: z.number().min(1).max(5).optional(), punctualityRating: z.number().min(1).max(5).optional(), communicationRating: z.number().min(1).max(5).optional(), valueRating: z.number().min(1).max(5).optional(), comment: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => {
-        const reviewId = await db.createReview({ jobId: input.jobId, reviewerId: ctx.user.id, revieweeId: input.revieweeId, reviewerRole: input.reviewerRole, overallRating: input.overallRating.toString(), qualityRating: input.qualityRating?.toString(), punctualityRating: input.punctualityRating?.toString(), communicationRating: input.communicationRating?.toString(), valueRating: input.valueRating?.toString(), comment: input.comment });
-        return { reviewId };
+    accept: protectedProcedure
+      .input(z.object({ quoteId: z.number(), jobId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.acceptQuote(input.quoteId, input.jobId);
+        return { success: true };
       }),
-    byUser: protectedProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => db.getReviewsByUser(input.userId)),
+  }),
+
+  matching: router({
+    getMatches: protectedProcedure
+      .input(z.object({ jobId: z.number(), category: z.string(), postcode: z.string() }))
+      .query(async ({ input }) => {
+        return matching.getSmartMatches(input.jobId, input.category, input.postcode);
+      }),
   }),
 
   progress: router({
+    byJob: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getProgressUpdatesByJob(input.id)),
     add: protectedProcedure
-      .input(z.object({ jobId: z.number(), title: z.string().optional(), description: z.string().optional(), photoUrl: z.string().optional(), isMilestone: z.boolean().default(false), milestoneTitle: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => { const id = await db.addProgressUpdate({ jobId: input.jobId, tradespersonId: ctx.user.id, title: input.title, description: input.description, photoUrl: input.photoUrl, isMilestone: input.isMilestone, milestoneTitle: input.milestoneTitle }); return { id }; }),
-    byJob: protectedProcedure.input(z.object({ jobId: z.number() })).query(async ({ input }) => db.getProgressUpdatesByJob(input.jobId)),
-    updateMilestone: protectedProcedure
-      .input(z.object({ progressId: z.number(), status: z.enum(["pending", "completed", "verified"]) }))
-      .mutation(async ({ input }) => {
-        return { success: true, progressId: input.progressId, status: input.status };
+      .input(z.object({
+        jobId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        photoUrl: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const updateId = await db.addProgressUpdate({
+          jobId: input.jobId,
+          tradespersonId: ctx.user.id,
+          title: input.title,
+          description: input.description,
+          photoUrl: input.photoUrl,
+        });
+        return { updateId };
       }),
   }),
 
   notifications: router({
     list: protectedProcedure.query(async ({ ctx }) => db.getNotificationsByUser(ctx.user.id)),
-    markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => { await db.markNotificationRead(input.id); return { success: true }; }),
-    markAllRead: protectedProcedure.mutation(async ({ ctx }) => { await db.markAllNotificationsRead(ctx.user.id); return { success: true }; }),
-  }),
-
-  credentials: router({
-    list: protectedProcedure.query(async ({ ctx }) => db.getCredentialsByTradesperson(ctx.user.id)),
-    add: protectedProcedure
-      .input(z.object({ credentialType: z.string(), issuer: z.string().optional(), documentUrl: z.string().optional(), registrationNumber: z.string().optional(), expiresAt: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => { const id = await db.addCredential({ tradespersonId: ctx.user.id, ...input, expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined }); return { id }; }),
-  }),
-
-  favourites: router({
-    list: protectedProcedure.query(async ({ ctx }) => db.getFavouritesByHomeowner(ctx.user.id)),
-    add: protectedProcedure.input(z.object({ tradespersonId: z.number() })).mutation(async ({ ctx, input }) => { await db.addFavourite(ctx.user.id, input.tradespersonId); return { success: true }; }),
-    remove: protectedProcedure.input(z.object({ tradespersonId: z.number() })).mutation(async ({ ctx, input }) => { await db.removeFavourite(ctx.user.id, input.tradespersonId); return { success: true }; }),
-  }),
-  availability: router({
-    list: protectedProcedure.input(z.object({ tradespersonId: z.number() })).query(async ({ input }) => db.getAvailabilitySlots(input.tradespersonId)),
-    add: protectedProcedure
-      .input(z.object({ date: z.string(), startTime: z.string(), endTime: z.string() }))
-      .mutation(async ({ ctx, input }) => { const id = await db.addAvailabilitySlot({ tradespersonId: ctx.user.id, date: input.date, startTime: input.startTime, endTime: input.endTime }); return { id }; }),
-    remove: protectedProcedure.input(z.object({ slotId: z.number() })).mutation(async ({ input }) => { await db.removeAvailabilitySlot(input.slotId); return { success: true }; }),
-  }),
-  jobAlerts: router({
-    list: protectedProcedure.query(async ({ ctx }) => db.getJobAlertsByTradesperson(ctx.user.id)),
-    create: protectedProcedure
-      .input(z.object({ tradeCategory: z.string(), postcode: z.string(), radiusMiles: z.number().default(10), minBudget: z.number().optional(), maxBudget: z.number().optional(), enabled: z.boolean().default(true) }))
-      .mutation(async ({ ctx, input }) => { const id = await db.createJobAlert({ tradespersonId: ctx.user.id, ...input }); return { id }; }),
-    update: protectedProcedure
-      .input(z.object({ alertId: z.number(), enabled: z.boolean().optional() }))
-      .mutation(async ({ input }) => { await db.updateJobAlert(input.alertId, { enabled: input.enabled }); return { success: true }; }),
-    delete: protectedProcedure.input(z.object({ alertId: z.number() })).mutation(async ({ input }) => { await db.deleteJobAlert(input.alertId); return { success: true }; }),
+    markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      await db.markNotificationRead(input.id);
+      return { success: true };
+    }),
   }),
 });
 

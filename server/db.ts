@@ -11,6 +11,7 @@ import {
   homeownerProfiles,
   jobAlerts,
   jobPhotos,
+  jobVideos,
   jobs,
   messages,
   notifications,
@@ -233,6 +234,18 @@ export async function getJobPhotos(jobId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(jobPhotos).where(eq(jobPhotos.jobId, jobId));
+}
+
+export async function addJobVideo(jobId: number, videoUrl: string, thumbnailUrl?: string, caption?: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(jobVideos).values({ jobId, videoUrl, thumbnailUrl, caption });
+}
+
+export async function getJobVideos(jobId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(jobVideos).where(eq(jobVideos.jobId, jobId));
 }
 
 // ─── Quote Helpers ──────────────────────────────────────────────────────────

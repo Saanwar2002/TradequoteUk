@@ -137,6 +137,15 @@ export const jobPhotos = mysqlTable("job_photos", {
   uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
 });
 
+export const jobVideos = mysqlTable("job_videos", {
+  id: int("id").autoincrement().primaryKey(),
+  jobId: int("jobId").notNull(),
+  videoUrl: text("videoUrl").notNull(),
+  thumbnailUrl: text("thumbnailUrl"),
+  caption: varchar("caption", { length: 255 }),
+  uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+});
+
 // ─── Quotes ─────────────────────────────────────────────────────────────────────
 
 export const quotes = mysqlTable("quotes", {

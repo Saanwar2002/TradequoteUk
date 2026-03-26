@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState, useEffect } from "react";
 import { ScreenContainer } from "@/components/screen-container";
@@ -7,7 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
 
-type Step = "category" | "details" | "budget" | "timing" | "confirm";
+type Step = "category" | "details" | "media" | "budget" | "timing" | "confirm";
 
 const TRADE_CATEGORIES = [
   { id: 1, name: "Plumbing", icon: "drop.fill" as const },
@@ -60,6 +60,10 @@ export default function PostJobScreen() {
   const [error, setError] = useState("");
   const [aiEstimate, setAiEstimate] = useState<{ minPrice: number; maxPrice: number; reasoning: string } | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
+  
+  // Media state
+  const [mediaItems, setMediaItems] = useState<{ url: string; type: "photo" | "video"; thumbnailUrl?: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // If emergency param is set, set urgency to emergency
   useEffect(() => {
@@ -70,12 +74,25 @@ export default function PostJobScreen() {
   }, [params.emergency]);
 
   const createJob = trpc.jobs.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // After job creation, add media if any
+      if (mediaItems.length > 0) {
+        for (const item of mediaItems) {
+          await addMedia.mutateAsync({
+            jobId: data.jobId,
+            type: item.type,
+            url: item.url,
+            thumbnailUrl: item.thumbnailUrl,
+          });
+        }
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({ pathname: "/job/[id]", params: { id: data.jobId } } as any);
     },
     onError: (e) => setError(e.message),
   });
+
+  const addMedia = trpc.jobs.addMedia.useMutation();
 
   const selectedCategory = TRADE_CATEGORIES.find(c => c.id === categoryId);
 
@@ -100,9 +117,29 @@ export default function PostJobScreen() {
     }
   };
 
-  const steps: Step[] = ["category", "details", "budget", "timing", "confirm"];
+  const steps: Step[] = ["category", "details", "media", "budget", "timing", "confirm"];
   const stepIndex = steps.indexOf(step);
   const progress = ((stepIndex + 1) / steps.length) * 100;
+
+  const handleAddMockMedia = (type: "photo" | "video") => {
+    setIsUploading(true);
+    // Simulate upload delay
+    setTimeout(() => {
+      const newMedia = type === "photo" 
+        ? { url: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=500", type: "photo" as const }
+        : { url: "https://www.w3schools.com/html/mov_bbb.mp4", type: "video" as const, thumbnailUrl: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=500" };
+      
+      setMediaItems([...mediaItems, newMedia]);
+      setIsUploading(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, 1000);
+  };
+
+  const removeMedia = (index: number) => {
+    const newMedia = [...mediaItems];
+    newMedia.splice(index, 1);
+    setMediaItems(newMedia);
+  };
 
   const goNext = () => {
     setError("");
@@ -113,6 +150,8 @@ export default function PostJobScreen() {
       if (!title.trim() || title.trim().length < 5) { setError("Please enter a descriptive title (min 5 chars)"); return; }
       if (!description.trim() || description.trim().length < 10) { setError("Please describe the work needed (min 10 chars)"); return; }
       if (!postcode.trim()) { setError("Please enter your postcode"); return; }
+      setStep("media");
+    } else if (step === "media") {
       handleGetEstimate();
       setStep("budget");
     } else if (step === "budget") {
@@ -138,7 +177,8 @@ export default function PostJobScreen() {
 
   const goBack = () => {
     if (step === "details") setStep("category");
-    else if (step === "budget") setStep("details");
+    else if (step === "media") setStep("details");
+    else if (step === "budget") setStep("media");
     else if (step === "timing") setStep("budget");
     else if (step === "confirm") setStep("timing");
     else router.back();
@@ -217,20 +257,71 @@ export default function PostJobScreen() {
                       numberOfLines={5}
                       textAlignVertical="top"
                     />
-                    <Text style={[styles.charCount, { color: colors.muted }]}>{description.length} chars (min 10)</Text>
                   </View>
                   <View>
                     <Text style={[styles.label, { color: colors.foreground }]}>Postcode *</Text>
                     <TextInput
                       style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
-                      placeholder="SW1A 1AA"
+                      placeholder="e.g. SW1A 1AA"
                       placeholderTextColor={colors.muted}
                       value={postcode}
                       onChangeText={setPostcode}
                       autoCapitalize="characters"
-                      returnKeyType="done"
                     />
                   </View>
+                </View>
+              </View>
+            )}
+
+            {/* Step: Media (NEW) */}
+            {step === "media" && (
+              <View style={styles.stepContent}>
+                <Text style={[styles.stepTitle, { color: colors.foreground }]}>Add photos or video</Text>
+                <Text style={[styles.stepDesc, { color: colors.muted }]}>Visuals help tradespeople give you much more accurate quotes</Text>
+                
+                <View style={styles.mediaGrid}>
+                  {mediaItems.map((item, index) => (
+                    <View key={index} style={[styles.mediaItem, { borderColor: colors.border }]}>
+                      <Image source={{ uri: item.thumbnailUrl || item.url }} style={styles.mediaPreview} />
+                      {item.type === "video" && (
+                        <View style={styles.videoOverlay}>
+                          <IconSymbol name="play.fill" size={20} color="#fff" />
+                        </View>
+                      )}
+                      <Pressable style={styles.removeMediaBtn} onPress={() => removeMedia(index)}>
+                        <IconSymbol name="xmark.circle.fill" size={20} color="#DC2626" />
+                      </Pressable>
+                    </View>
+                  ))}
+                  
+                  {mediaItems.length < 6 && (
+                    <View style={styles.mediaUploadRow}>
+                      <Pressable 
+                        style={[styles.uploadBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => handleAddMockMedia("photo")}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? <ActivityIndicator size="small" color={colors.primary} /> : (
+                          <>
+                            <IconSymbol name="camera.fill" size={24} color={colors.primary} />
+                            <Text style={[styles.uploadBtnText, { color: colors.foreground }]}>Add Photo</Text>
+                          </>
+                        )}
+                      </Pressable>
+                      <Pressable 
+                        style={[styles.uploadBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => handleAddMockMedia("video")}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? <ActivityIndicator size="small" color={colors.primary} /> : (
+                          <>
+                            <IconSymbol name="video.fill" size={24} color={colors.primary} />
+                            <Text style={[styles.uploadBtnText, { color: colors.foreground }]}>Add Video</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               </View>
             )}
@@ -239,77 +330,61 @@ export default function PostJobScreen() {
             {step === "budget" && (
               <View style={styles.stepContent}>
                 <Text style={[styles.stepTitle, { color: colors.foreground }]}>What's your budget?</Text>
-                <Text style={[styles.stepDesc, { color: colors.muted }]}>Setting a budget helps tradespeople quote accurately</Text>
+                <Text style={[styles.stepDesc, { color: colors.muted }]}>Set a range or use our AI estimate as a guide</Text>
                 
-                {/* AI Estimate Card */}
-                {(isEstimating || aiEstimate) && (
-                  <View style={[styles.aiCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "30" }]}>
-                    <View style={styles.aiHeader}>
-                      <IconSymbol name="sparkles" size={18} color={colors.primary} />
-                      <Text style={[styles.aiTitle, { color: colors.primary }]}>AI Price Estimate</Text>
+                {aiEstimate && (
+                  <View style={[styles.aiEstimateCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+                    <View style={styles.aiEstimateHeader}>
+                      <IconSymbol name="sparkles" size={16} color={colors.primary} />
+                      <Text style={[styles.aiEstimateTitle, { color: colors.primary }]}>AI Price Estimate</Text>
                     </View>
-                    {isEstimating ? (
-                      <Text style={[styles.aiLoading, { color: colors.muted }]}>Analyzing job details...</Text>
-                    ) : aiEstimate ? (
-                      <View>
-                        <Text style={[styles.aiPrice, { color: colors.foreground }]}>£{aiEstimate.minPrice} - £{aiEstimate.maxPrice}</Text>
-                        <Text style={[styles.aiReasoning, { color: colors.muted }]}>{aiEstimate.reasoning}</Text>
-                        <Pressable 
-                          style={styles.applyAiBtn}
-                          onPress={() => {
-                            setBudgetMin(aiEstimate.minPrice.toString());
-                            setBudgetMax(aiEstimate.maxPrice.toString());
-                            setBudgetNotSure(false);
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }}
-                        >
-                          <Text style={[styles.applyAiText, { color: colors.primary }]}>Apply these values</Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
+                    <Text style={[styles.aiEstimatePrice, { color: colors.foreground }]}>£{aiEstimate.minPrice} - £{aiEstimate.maxPrice}</Text>
+                    <Text style={[styles.aiEstimateReason, { color: colors.muted }]}>{aiEstimate.reasoning}</Text>
+                    <Pressable 
+                      style={styles.useEstimateBtn}
+                      onPress={() => {
+                        setBudgetMin(aiEstimate.minPrice.toString());
+                        setBudgetMax(aiEstimate.maxPrice.toString());
+                        setBudgetNotSure(false);
+                      }}
+                    >
+                      <Text style={[styles.useEstimateText, { color: colors.primary }]}>Use these amounts</Text>
+                    </Pressable>
                   </View>
                 )}
 
-                <View style={styles.form}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.notSureBtn,
-                      { borderColor: budgetNotSure ? colors.primary : colors.border, backgroundColor: budgetNotSure ? colors.primary + "10" : colors.surface, opacity: pressed ? 0.8 : 1 },
-                    ]}
-                    onPress={() => setBudgetNotSure(!budgetNotSure)}
-                  >
-                    <IconSymbol name={budgetNotSure ? "checkmark.square.fill" : "square"} size={20} color={budgetNotSure ? colors.primary : colors.muted} />
-                    <Text style={[styles.notSureText, { color: colors.foreground }]}>I'm not sure about the budget</Text>
-                  </Pressable>
-                  {!budgetNotSure && (
-                    <View style={styles.budgetRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.label, { color: colors.foreground }]}>Min Budget (£)</Text>
-                        <TextInput
-                          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
-                          placeholder="100"
-                          placeholderTextColor={colors.muted}
-                          value={budgetMin}
-                          onChangeText={setBudgetMin}
-                          keyboardType="decimal-pad"
-                          returnKeyType="next"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.label, { color: colors.foreground }]}>Max Budget (£)</Text>
-                        <TextInput
-                          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
-                          placeholder="500"
-                          placeholderTextColor={colors.muted}
-                          value={budgetMax}
-                          onChangeText={setBudgetMax}
-                          keyboardType="decimal-pad"
-                          returnKeyType="done"
-                        />
-                      </View>
-                    </View>
-                  )}
+                <View style={styles.budgetInputs}>
+                  <View style={styles.budgetField}>
+                    <Text style={[styles.label, { color: colors.foreground }]}>Min (£)</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                      placeholder="0"
+                      value={budgetMin}
+                      onChangeText={setBudgetMin}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.budgetField}>
+                    <Text style={[styles.label, { color: colors.foreground }]}>Max (£)</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
+                      placeholder="1000"
+                      value={budgetMax}
+                      onChangeText={setBudgetMax}
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </View>
+                
+                <Pressable 
+                  style={styles.checkboxRow}
+                  onPress={() => setBudgetNotSure(!budgetNotSure)}
+                >
+                  <View style={[styles.checkbox, { borderColor: colors.primary, backgroundColor: budgetNotSure ? colors.primary : "transparent" }]}>
+                    {budgetNotSure && <IconSymbol name="checkmark" size={12} color="#fff" />}
+                  </View>
+                  <Text style={[styles.checkboxLabel, { color: colors.foreground }]}>I'm not sure about the budget</Text>
+                </Pressable>
               </View>
             )}
 
@@ -317,40 +392,25 @@ export default function PostJobScreen() {
             {step === "timing" && (
               <View style={styles.stepContent}>
                 <Text style={[styles.stepTitle, { color: colors.foreground }]}>When do you need it?</Text>
-                <Text style={[styles.stepDesc, { color: colors.muted }]}>Let tradespeople know your timeline</Text>
-                <View style={styles.urgencyList}>
+                <Text style={[styles.stepDesc, { color: colors.muted }]}>Select the urgency level for your project</Text>
+                
+                <View style={styles.urgencyGrid}>
                   {URGENCY_OPTIONS.map((opt) => (
                     <Pressable
                       key={opt.value}
-                      style={({ pressed }) => [
+                      style={[
                         styles.urgencyCard,
-                        { borderColor: urgency === opt.value ? (opt.value === "emergency" ? "#DC2626" : colors.primary) : colors.border, backgroundColor: urgency === opt.value ? (opt.value === "emergency" ? "#DC262610" : colors.primary + "10") : colors.surface, opacity: pressed ? 0.8 : 1 },
+                        { borderColor: urgency === opt.value ? colors.primary : colors.border, backgroundColor: urgency === opt.value ? colors.primary + "10" : colors.surface }
                       ]}
-                      onPress={() => { setUrgency(opt.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                      onPress={() => setUrgency(opt.value)}
                     >
-                      <View style={[styles.urgencyIcon, { backgroundColor: opt.value === "emergency" ? "#DC262620" : colors.primary + "20" }]}>
-                        <IconSymbol name={opt.icon} size={22} color={opt.value === "emergency" ? "#DC2626" : colors.primary} />
-                      </View>
+                      <IconSymbol name={opt.icon} size={24} color={urgency === opt.value ? colors.primary : colors.muted} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.urgencyLabel, { color: colors.foreground }]}>{opt.label}</Text>
                         <Text style={[styles.urgencyDesc, { color: colors.muted }]}>{opt.desc}</Text>
                       </View>
-                      {urgency === opt.value && (
-                        <IconSymbol name="checkmark.circle.fill" size={22} color={opt.value === "emergency" ? "#DC2626" : colors.primary} />
-                      )}
                     </Pressable>
                   ))}
-                </View>
-                <View>
-                  <Text style={[styles.label, { color: colors.foreground }]}>Preferred Start Date (optional)</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]}
-                    placeholder="e.g. 15 April 2026"
-                    placeholderTextColor={colors.muted}
-                    value={preferredDate}
-                    onChangeText={setPreferredDate}
-                    returnKeyType="done"
-                  />
                 </View>
               </View>
             )}
@@ -358,131 +418,133 @@ export default function PostJobScreen() {
             {/* Step: Confirm */}
             {step === "confirm" && (
               <View style={styles.stepContent}>
-                <Text style={[styles.stepTitle, { color: colors.foreground }]}>Review your job</Text>
-                <Text style={[styles.stepDesc, { color: colors.muted }]}>Check the details before posting</Text>
-                <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <SummaryRow label="Category" value={selectedCategory?.name ?? ""} colors={colors} />
-                  <SummaryRow label="Title" value={title} colors={colors} />
-                  <SummaryRow label="Location" value={postcode.toUpperCase()} colors={colors} />
-                  <SummaryRow label="Urgency" value={urgency.charAt(0).toUpperCase() + urgency.slice(1)} colors={colors} />
-                  <SummaryRow
-                    label="Budget"
-                    value={budgetNotSure ? "Not sure" : (budgetMin || budgetMax) ? `£${budgetMin || "?"} – £${budgetMax || "?"}` : "Not specified"}
-                    colors={colors}
-                  />
-                  {preferredDate && <SummaryRow label="Start Date" value={preferredDate} colors={colors} />}
-                </View>
-                {urgency === "emergency" && (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.boostCard,
-                      { borderColor: wantBoost ? colors.primary : colors.border, backgroundColor: wantBoost ? colors.primary + "10" : colors.surface, opacity: pressed ? 0.8 : 1 },
-                    ]}
-                    onPress={() => { setWantBoost(!wantBoost); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <IconSymbol name="bolt.fill" size={18} color="#F59E0B" />
-                        <Text style={[styles.boostTitle, { color: colors.foreground }]}>Boost this job</Text>
-                        <Text style={[styles.boostPrice, { color: colors.primary }]}>£3</Text>
-                      </View>
-                      <Text style={[styles.boostDesc, { color: colors.muted }]}>Get to the top of the list for 24 hours</Text>
+                <Text style={[styles.stepTitle, { color: colors.foreground }]}>Review & Post</Text>
+                <Text style={[styles.stepDesc, { color: colors.muted }]}>Double check everything before posting your job</Text>
+                
+                <View style={[styles.reviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View style={styles.reviewItem}>
+                    <Text style={[styles.reviewLabel, { color: colors.muted }]}>Category</Text>
+                    <Text style={[styles.reviewValue, { color: colors.foreground }]}>{selectedCategory?.name}</Text>
+                  </View>
+                  <View style={styles.reviewItem}>
+                    <Text style={[styles.reviewLabel, { color: colors.muted }]}>Title</Text>
+                    <Text style={[styles.reviewValue, { color: colors.foreground }]}>{title}</Text>
+                  </View>
+                  <View style={styles.reviewItem}>
+                    <Text style={[styles.reviewLabel, { color: colors.muted }]}>Budget</Text>
+                    <Text style={[styles.reviewValue, { color: colors.foreground }]}>
+                      {budgetNotSure ? "Not sure" : `£${budgetMin || 0} - £${budgetMax || "Any"}`}
+                    </Text>
+                  </View>
+                  <View style={styles.reviewItem}>
+                    <Text style={[styles.reviewLabel, { color: colors.muted }]}>Urgency</Text>
+                    <Text style={[styles.reviewValue, { color: colors.foreground }]}>{urgency.toUpperCase()}</Text>
+                  </View>
+                  {mediaItems.length > 0 && (
+                    <View style={styles.reviewItem}>
+                      <Text style={[styles.reviewLabel, { color: colors.muted }]}>Media</Text>
+                      <Text style={[styles.reviewValue, { color: colors.foreground }]}>{mediaItems.length} items attached</Text>
                     </View>
-                    <IconSymbol name={wantBoost ? "checkmark.square.fill" : "square"} size={20} color={wantBoost ? colors.primary : colors.muted} />
-                  </Pressable>
-                )}
-                <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-                  <IconSymbol name="info.circle.fill" size={16} color={colors.primary} />
-                  <Text style={[styles.infoText, { color: colors.foreground }]}>
-                    Your job will be visible to verified tradespeople in your area. You'll receive quotes within hours.
-                  </Text>
+                  )}
                 </View>
+
+                {urgency === "emergency" && (
+                  <View style={[styles.boostCard, { backgroundColor: colors.warning + "10", borderColor: colors.warning + "30" }]}>
+                    <View style={styles.boostHeader}>
+                      <IconSymbol name="bolt.fill" size={16} color={colors.warning} />
+                      <Text style={[styles.boostTitle, { color: colors.warning }]}>Emergency Boost</Text>
+                    </View>
+                    <Text style={[styles.boostDesc, { color: colors.muted }]}>Boost your job to get faster responses from nearby tradespeople.</Text>
+                    <Pressable 
+                      style={styles.checkboxRow}
+                      onPress={() => setWantBoost(!wantBoost)}
+                    >
+                      <View style={[styles.checkbox, { borderColor: colors.warning, backgroundColor: wantBoost ? colors.warning : "transparent" }]}>
+                        {wantBoost && <IconSymbol name="checkmark" size={12} color="#fff" />}
+                      </View>
+                      <Text style={[styles.checkboxLabel, { color: colors.foreground }]}>Boost my job for £4.99</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             )}
 
-            {/* Error */}
-            {error ? (
-              <View style={[styles.errorBox, { backgroundColor: colors.error + "15", borderColor: colors.error + "30" }]}>
-                <IconSymbol name="exclamationmark.circle.fill" size={16} color={colors.error} />
-                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-              </View>
-            ) : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Bottom CTA */}
-      <View style={[styles.bottomCta, { borderTopColor: colors.border }]}>
-        <Pressable
-          style={({ pressed }) => [styles.continueBtn, { backgroundColor: colors.primary, opacity: pressed || createJob.isPending ? 0.85 : 1 }]}
-          onPress={goNext}
-          disabled={createJob.isPending}
-        >
-          <Text style={styles.continueBtnText}>
-            {createJob.isPending ? "Posting..." : step === "confirm" ? "Post Job" : "Continue"}
-          </Text>
-          {!createJob.isPending && <IconSymbol name="chevron.right" size={18} color="#fff" />}
-        </Pressable>
-      </View>
+        {/* Footer */}
+        <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextBtn,
+              { backgroundColor: colors.primary, opacity: pressed || createJob.isLoading ? 0.8 : 1 }
+            ]}
+            onPress={goNext}
+            disabled={createJob.isLoading}
+          >
+            {createJob.isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.nextBtnText}>{step === "confirm" ? "Post Job Now" : "Continue"}</Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
 
-function SummaryRow({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={[styles.summaryRow, { borderBottomColor: colors.border }]}>
-      <Text style={[styles.summaryLabel, { color: colors.muted }]}>{label}</Text>
-      <Text style={[styles.summaryValue, { color: colors.foreground }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 0.5 },
-  headerTitle: { fontSize: 17, fontWeight: "700" },
-  progressBar: { height: 3 },
-  progressFill: { height: 3 },
-  content: { padding: 20, gap: 16 },
-  stepContent: { gap: 16 },
-  stepTitle: { fontSize: 26, fontWeight: "800", letterSpacing: -0.5 },
-  stepDesc: { fontSize: 15, lineHeight: 22 },
-  aiCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
-  aiHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  aiTitle: { fontSize: 14, fontWeight: "700", marginLeft: 6, textTransform: "uppercase", letterSpacing: 0.5 },
-  aiLoading: { fontSize: 14, fontStyle: "italic" },
-  aiPrice: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
-  aiReasoning: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
-  applyAiBtn: { alignSelf: "flex-start" },
-  applyAiText: { fontSize: 14, fontWeight: "600", textDecorationLine: "underline" },
-  categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  categoryCard: { width: "47%", borderRadius: 14, borderWidth: 1.5, padding: 14, alignItems: "center", gap: 8 },
+  header: { height: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
+  progressBar: { height: 4, flexDirection: "row" },
+  progressFill: { height: "100%" },
+  content: { flex: 1, padding: 20 },
+  stepContent: { flex: 1 },
+  stepTitle: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  stepDesc: { fontSize: 16, marginBottom: 24 },
+  categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  categoryCard: { width: "48%", padding: 16, borderRadius: 12, borderWidth: 1, alignItems: "center", gap: 8 },
   categoryName: { fontSize: 13, fontWeight: "600", textAlign: "center" },
   form: { gap: 16 },
-  label: { fontSize: 13, fontWeight: "600", marginBottom: 6 },
-  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  input: { height: 50, borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, fontSize: 16 },
   textArea: { height: 120, paddingTop: 12 },
-  charCount: { fontSize: 11, marginTop: 4, textAlign: "right" },
-  notSureBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1.5, padding: 14 },
-  notSureText: { fontSize: 15 },
-  budgetRow: { flexDirection: "row", gap: 12 },
-  urgencyList: { gap: 10 },
-  urgencyCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1.5, padding: 14 },
-  urgencyIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  mediaGrid: { gap: 16 },
+  mediaItem: { width: 100, height: 100, borderRadius: 12, borderWidth: 1, overflow: "hidden", position: "relative" },
+  mediaPreview: { width: "100%", height: "100%" },
+  removeMediaBtn: { position: "absolute", top: 4, right: 4, backgroundColor: "#fff", borderRadius: 10 },
+  videoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.3)", alignItems: "center", justifyContent: "center" },
+  mediaUploadRow: { flexDirection: "row", gap: 12 },
+  uploadBtn: { flex: 1, height: 100, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 8 },
+  uploadBtnText: { fontSize: 12, fontWeight: "600" },
+  aiEstimateCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20 },
+  aiEstimateHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  aiEstimateTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  aiEstimatePrice: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  aiEstimateReason: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  useEstimateBtn: { alignSelf: "flex-start" },
+  useEstimateText: { fontSize: 14, fontWeight: "700" },
+  budgetInputs: { flexDirection: "row", gap: 16, marginBottom: 16 },
+  budgetField: { flex: 1 },
+  checkboxRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  checkboxLabel: { fontSize: 14, fontWeight: "500" },
+  urgencyGrid: { gap: 12 },
+  urgencyCard: { flexDirection: "row", padding: 16, borderRadius: 12, borderWidth: 1, alignItems: "center", gap: 16 },
   urgencyLabel: { fontSize: 16, fontWeight: "700" },
-  urgencyDesc: { fontSize: 13, marginTop: 2 },
-  summaryCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5 },
-  summaryLabel: { fontSize: 13 },
-  summaryValue: { fontSize: 14, fontWeight: "600", flex: 1, textAlign: "right" },
-  infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 12, padding: 12, borderWidth: 1 },
-  infoText: { fontSize: 13, flex: 1, lineHeight: 18 },
-  boostCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1.5, padding: 14 },
-  boostTitle: { fontSize: 15, fontWeight: "700" },
-  boostPrice: { fontSize: 14, fontWeight: "700" },
-  boostDesc: { fontSize: 12, marginTop: 2 },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, padding: 12, borderWidth: 1 },
-  errorText: { fontSize: 13, flex: 1 },
-  bottomCta: { padding: 16, borderTopWidth: 0.5 },
-  continueBtn: { borderRadius: 14, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  continueBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  urgencyDesc: { fontSize: 13 },
+  reviewCard: { padding: 16, borderRadius: 12, borderWidth: 1, gap: 12 },
+  reviewItem: { gap: 4 },
+  reviewLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase" },
+  reviewValue: { fontSize: 16, fontWeight: "500" },
+  boostCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginTop: 20 },
+  boostHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  boostTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  boostDesc: { fontSize: 13, marginBottom: 12 },
+  errorText: { color: "#DC2626", fontSize: 14, fontWeight: "600", marginTop: 12, textAlign: "center" },
+  footer: { padding: 20, paddingBottom: Platform.OS === "ios" ? 40 : 20, borderTopWidth: 1 },
+  nextBtn: { height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
+  nextBtnText: { color: "#fff", fontSize: 18, fontWeight: "700" },
 });
