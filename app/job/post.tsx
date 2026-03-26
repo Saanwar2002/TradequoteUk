@@ -32,6 +32,7 @@ const TRADE_CATEGORIES = [
   { id: 20, name: "Window & Door Fitting", icon: "door.left.hand.closed" as const },
   { id: 21, name: "Flooring & Tiling", icon: "square.grid.3x3.fill" as const },
   { id: 22, name: "Fencing & Decking", icon: "fence.fill" as const },
+  { id: 23, name: "Handyman Work", icon: "wrench.and.screwdriver.fill" as const },
 ];
 
 const URGENCY_OPTIONS = [

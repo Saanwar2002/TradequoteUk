@@ -186,6 +186,7 @@ export async function seedTradeCategories() {
     { name: "Roofing", slug: "roofing", icon: "home" },
     { name: "Gardening", slug: "gardening", icon: "leaf" },
     { name: "Cleaning", slug: "cleaning", icon: "sparkles" },
+    { name: "Handyman Work", slug: "handyman-work", icon: "wrench.and.screwdriver.fill" },
   ];
   for (const cat of categories) {
     await db.insert(tradeCategories).values(cat).onDuplicateKeyUpdate({ set: cat });
