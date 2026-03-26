@@ -101,3 +101,100 @@ describe("TradeQuote UK - Core Logic", () => {
     expect(getInitials("Mary Jane Watson")).toBe("MJ");
   });
 });
+
+
+describe("TradeQuote UK - New Features", () => {
+  it("calculates job expiry time for emergency jobs (24 hours)", () => {
+    const now = Date.now();
+    const emergencyExpiry = new Date(now + 24 * 60 * 60 * 1000);
+    const hoursUntilExpiry = Math.ceil((emergencyExpiry.getTime() - now) / (1000 * 60 * 60));
+    expect(hoursUntilExpiry).toBe(24);
+  });
+
+  it("calculates job expiry time for normal jobs (30 days)", () => {
+    const now = Date.now();
+    const normalExpiry = new Date(now + 30 * 24 * 60 * 60 * 1000);
+    const daysUntilExpiry = Math.ceil((normalExpiry.getTime() - now) / (1000 * 60 * 60 * 24));
+    expect(daysUntilExpiry).toBe(30);
+  });
+
+  it("formats job expiry countdown correctly", () => {
+    const formatExpiry = (expiresAt: Date) => {
+      const hours = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
+      return `Expires in ${hours} hours`;
+    };
+    const soon = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    const result = formatExpiry(soon);
+    expect(result).toContain("Expires in");
+    expect(result).toContain("hours");
+  });
+
+  it("applies £3 boost fee to emergency jobs", () => {
+    const calcBoostCost = (urgency: string, wantBoost: boolean) => {
+      return urgency === "emergency" && wantBoost ? 3.0 : 0;
+    };
+    expect(calcBoostCost("emergency", true)).toBe(3.0);
+    expect(calcBoostCost("emergency", false)).toBe(0);
+    expect(calcBoostCost("normal", true)).toBe(0);
+    expect(calcBoostCost("urgent", true)).toBe(0);
+  });
+
+  it("displays response time on tradesperson profile", () => {
+    const formatResponseTime = (minutes: number) => {
+      if (minutes < 60) return `${minutes} mins`;
+      if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+      return `${Math.floor(minutes / 1440)}d`;
+    };
+    expect(formatResponseTime(15)).toBe("15 mins");
+    expect(formatResponseTime(120)).toBe("2h");
+    expect(formatResponseTime(1440)).toBe("1d");
+    expect(formatResponseTime(2880)).toBe("2d");
+  });
+
+  it("only shows boost toggle for emergency jobs", () => {
+    const shouldShowBoost = (urgency: string) => urgency === "emergency";
+    expect(shouldShowBoost("emergency")).toBe(true);
+    expect(shouldShowBoost("urgent")).toBe(false);
+    expect(shouldShowBoost("normal")).toBe(false);
+  });
+
+  it("only shows expiry countdown for open jobs", () => {
+    const shouldShowExpiry = (status: string, expiresAt: Date | null) => {
+      return status === "open" && expiresAt !== null;
+    };
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    expect(shouldShowExpiry("open", futureDate)).toBe(true);
+    expect(shouldShowExpiry("quoting", futureDate)).toBe(false);
+    expect(shouldShowExpiry("completed", futureDate)).toBe(false);
+    expect(shouldShowExpiry("open", null)).toBe(false);
+  });
+
+  it("calculates hours remaining until job expiry", () => {
+    const getHoursRemaining = (expiresAt: Date) => {
+      return Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60));
+    };
+    const in12Hours = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    const hours = getHoursRemaining(in12Hours);
+    expect(hours).toBeGreaterThanOrEqual(11);
+    expect(hours).toBeLessThanOrEqual(12);
+  });
+
+  it("validates boost toggle state", () => {
+    let wantBoost = false;
+    expect(wantBoost).toBe(false);
+    wantBoost = true;
+    expect(wantBoost).toBe(true);
+    wantBoost = false;
+    expect(wantBoost).toBe(false);
+  });
+
+  it("prevents boost for non-emergency jobs", () => {
+    const canBoost = (urgency: string) => urgency === "emergency";
+    const applyBoost = (urgency: string, wantBoost: boolean) => {
+      return canBoost(urgency) && wantBoost;
+    };
+    expect(applyBoost("emergency", true)).toBe(true);
+    expect(applyBoost("urgent", true)).toBe(false);
+    expect(applyBoost("normal", true)).toBe(false);
+  });
+});

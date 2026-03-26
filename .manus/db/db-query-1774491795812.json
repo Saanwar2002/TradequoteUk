@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `jobs` ADD `expiresAt` timestamp;\nALTER TABLE `jobs` ADD `isBoosted` boolean DEFAULT false NOT NULL;\nALTER TABLE `tradesperson_profiles` ADD `averageResponseTimeMinutes` int DEFAULT 0 NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 48bP948WRihkgKd.root --database 3Q9CEa3cTyEZW32bcCWGQo --execute ALTER TABLE `jobs` ADD `expiresAt` timestamp;\nALTER TABLE `jobs` ADD `isBoosted` boolean DEFAULT false NOT NULL;\nALTER TABLE `tradesperson_profiles` ADD `averageResponseTimeMinutes` int DEFAULT 0 NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 739
+}

@@ -15,6 +15,13 @@
       "when": 1774488013028,
       "tag": "0001_true_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774491785994,
+      "tag": "0002_sweet_bulldozer",
+      "breakpoints": true
     }
   ]
 }

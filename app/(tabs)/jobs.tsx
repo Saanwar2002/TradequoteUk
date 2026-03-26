@@ -191,6 +191,14 @@ export default function JobsScreen() {
                 </Text>
               </View>
             )}
+            {item.expiresAt && item.status === "open" && (
+              <View style={[styles.expiryRow, { backgroundColor: colors.warning + "15", borderColor: colors.warning + "30" }]}>
+                <IconSymbol name="clock.fill" size={12} color={colors.warning} />
+                <Text style={[styles.expiryText, { color: colors.warning }]}>
+                  Expires in {Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60))} hours
+                </Text>
+              </View>
+            )}
           </Pressable>
         )}
       />
@@ -229,4 +237,6 @@ const styles = StyleSheet.create({
   urgencyText: { fontSize: 11, fontWeight: "700" },
   budgetRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   budgetText: { fontSize: 12, fontWeight: "600" },
+  expiryRow: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, padding: 8, borderWidth: 1 },
+  expiryText: { fontSize: 12, fontWeight: "600" },
 });

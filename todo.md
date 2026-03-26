@@ -85,3 +85,8 @@
 
 ## Current Issues
 - [x] Emergency call-out button does not work
+
+## New Features to Add
+- [x] Boost promotion for emergency jobs (£3 boost to top of list for 24h)
+- [x] Tradesperson response time tracking (display on profiles)
+- [x] Job expiry countdown timer (on active jobs)

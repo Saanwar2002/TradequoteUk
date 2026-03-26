@@ -71,6 +71,7 @@ export const tradespersonProfiles = mysqlTable("tradesperson_profiles", {
   ecoCertified: boolean("ecoCertified").default(false).notNull(),
   videoIntroUrl: text("videoIntroUrl"),
   responseRatePercent: decimal("responseRatePercent", { precision: 5, scale: 2 }).default("0").notNull(),
+  averageResponseTimeMinutes: int("averageResponseTimeMinutes").default(0).notNull(),
   reputationScore: decimal("reputationScore", { precision: 5, scale: 2 }),
   strikes: int("strikes").default(0).notNull(),
   isSuspended: boolean("isSuspended").default(false).notNull(),
@@ -113,6 +114,8 @@ export const jobs = mysqlTable("jobs", {
   quoteCount: int("quoteCount").default(0).notNull(),
   acceptedQuoteId: int("acceptedQuoteId"),
   completedAt: timestamp("completedAt"),
+  expiresAt: timestamp("expiresAt"),
+  isBoosted: boolean("isBoosted").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

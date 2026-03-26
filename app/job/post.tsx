@@ -46,6 +46,7 @@ export default function PostJobScreen() {
   const [budgetNotSure, setBudgetNotSure] = useState(false);
   const [preferredDate, setPreferredDate] = useState("");
   const [isEmergency, setIsEmergency] = useState(false);
+  const [wantBoost, setWantBoost] = useState(false);
   const [error, setError] = useState("");
 
   // If emergency param is set, set urgency to emergency
@@ -96,6 +97,7 @@ export default function PostJobScreen() {
         budgetNotSure,
         preferredStartDate: preferredDate || undefined,
         isEmergency: urgency === "emergency",
+        isBoosted: wantBoost && urgency === "emergency",
       });
     }
   };
@@ -306,6 +308,25 @@ export default function PostJobScreen() {
                   />
                   {preferredDate && <SummaryRow label="Start Date" value={preferredDate} colors={colors} />}
                 </View>
+                {urgency === "emergency" && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.boostCard,
+                      { borderColor: wantBoost ? colors.primary : colors.border, backgroundColor: wantBoost ? colors.primary + "10" : colors.surface, opacity: pressed ? 0.8 : 1 },
+                    ]}
+                    onPress={() => { setWantBoost(!wantBoost); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <IconSymbol name="bolt.fill" size={18} color="#F59E0B" />
+                        <Text style={[styles.boostTitle, { color: colors.foreground }]}>Boost this job</Text>
+                        <Text style={[styles.boostPrice, { color: colors.primary }]}>£3</Text>
+                      </View>
+                      <Text style={[styles.boostDesc, { color: colors.muted }]}>Get to the top of the list for 24 hours</Text>
+                    </View>
+                    <IconSymbol name={wantBoost ? "checkmark.square.fill" : "square"} size={20} color={wantBoost ? colors.primary : colors.muted} />
+                  </Pressable>
+                )}
                 <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <IconSymbol name="info.circle.fill" size={16} color={colors.primary} />
                   <Text style={[styles.infoText, { color: colors.foreground }]}>
@@ -383,6 +404,10 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 14, fontWeight: "600", flex: 1, textAlign: "right" },
   infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 12, padding: 12, borderWidth: 1 },
   infoText: { fontSize: 13, flex: 1, lineHeight: 18 },
+  boostCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1.5, padding: 14 },
+  boostTitle: { fontSize: 15, fontWeight: "700" },
+  boostPrice: { fontSize: 14, fontWeight: "700" },
+  boostDesc: { fontSize: 12, marginTop: 2 },
   errorBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, padding: 12, borderWidth: 1 },
   errorText: { fontSize: 13, flex: 1 },
   bottomCta: { padding: 16, borderTopWidth: 0.5 },

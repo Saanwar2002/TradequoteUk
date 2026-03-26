@@ -70,9 +70,10 @@ export const appRouter = router({
 
   jobs: router({
     create: protectedProcedure
-      .input(z.object({ tradeCategoryId: z.number(), title: z.string().min(5), description: z.string().min(10), postcode: z.string().min(2), urgency: z.enum(["normal", "urgent", "emergency"]).default("normal"), budgetMin: z.number().optional(), budgetMax: z.number().optional(), budgetNotSure: z.boolean().default(false), preferredStartDate: z.string().optional(), isGroupJob: z.boolean().default(false), isEmergency: z.boolean().default(false) }))
+      .input(z.object({ tradeCategoryId: z.number(), title: z.string().min(5), description: z.string().min(10), postcode: z.string().min(2), urgency: z.enum(["normal", "urgent", "emergency"]).default("normal"), budgetMin: z.number().optional(), budgetMax: z.number().optional(), budgetNotSure: z.boolean().default(false), preferredStartDate: z.string().optional(), isGroupJob: z.boolean().default(false), isEmergency: z.boolean().default(false), isBoosted: z.boolean().default(false) }))
       .mutation(async ({ ctx, input }) => {
-        const jobId = await db.createJob({ homeownerId: ctx.user.id, tradeCategoryId: input.tradeCategoryId, title: input.title, description: input.description, postcode: input.postcode, urgency: input.urgency, budgetMin: input.budgetMin?.toString(), budgetMax: input.budgetMax?.toString(), budgetNotSure: input.budgetNotSure, preferredStartDate: input.preferredStartDate ? new Date(input.preferredStartDate) : undefined, isGroupJob: input.isGroupJob, isEmergency: input.isEmergency, status: "open" });
+        const expiresAt = input.urgency === "emergency" ? new Date(Date.now() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const jobId = await db.createJob({ homeownerId: ctx.user.id, tradeCategoryId: input.tradeCategoryId, title: input.title, description: input.description, postcode: input.postcode, urgency: input.urgency, budgetMin: input.budgetMin?.toString(), budgetMax: input.budgetMax?.toString(), budgetNotSure: input.budgetNotSure, preferredStartDate: input.preferredStartDate ? new Date(input.preferredStartDate) : undefined, isGroupJob: input.isGroupJob, isEmergency: input.isEmergency, isBoosted: input.isBoosted, expiresAt, status: "open" });
         return { jobId };
       }),
     myJobs: protectedProcedure.query(async ({ ctx }) => db.getJobsByHomeowner(ctx.user.id)),

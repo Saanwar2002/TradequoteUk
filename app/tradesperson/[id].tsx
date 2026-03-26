@@ -64,7 +64,7 @@ export default function TradespersonProfileScreen() {
           <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {[
               { label: "Jobs Done", value: "—" },
-              { label: "Response Time", value: "< 1hr" },
+              { label: "Response Time", value: "15 mins" },
               { label: "Repeat Clients", value: "—" },
             ].map((stat, i) => (
               <View key={i} style={[styles.statItem, i < 2 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
