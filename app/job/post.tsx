@@ -77,6 +77,8 @@ export default function PostJobScreen() {
     onError: (e) => setError(e.message),
   });
 
+  const selectedCategory = TRADE_CATEGORIES.find(c => c.id === categoryId);
+
   const getEstimate = trpc.jobs.estimate.useQuery(
     { title, description, category: selectedCategory?.name || "" },
     { enabled: false }
@@ -97,8 +99,6 @@ export default function PostJobScreen() {
       setIsEstimating(false);
     }
   };
-
-  const selectedCategory = TRADE_CATEGORIES.find(c => c.id === categoryId);
 
   const steps: Step[] = ["category", "details", "budget", "timing", "confirm"];
   const stepIndex = steps.indexOf(step);

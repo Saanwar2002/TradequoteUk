@@ -9,7 +9,7 @@ export default defineConfig({
     port: 4000,
     user: "FC8GsaD8hLQ7Yoc.root",
     password: "hHAUj9GVvf7c5qFq",
-    database: "test",
+    database: "tradequote",
     ssl: {
       rejectUnauthorized: true,
     },

@@ -1,7 +1,11 @@
+import OpenAI from "openai";
+
 /**
- * Mock AI Service for TradequoteUk
- * This service simulates AI-powered quote estimation and job analysis.
+ * Real AI Service for TradequoteUk
+ * This service uses OpenAI GPT-4 to provide job analysis and quote estimation.
  */
+
+const client = new OpenAI();
 
 export interface AIEstimate {
   minPrice: number;
@@ -15,37 +19,58 @@ export async function estimateJobCost(
   description: string,
   category: string
 ): Promise<AIEstimate> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  try {
+    const prompt = `
+    You are an expert UK construction and home maintenance cost estimator.
+    Analyze the following job details and provide a realistic price range in GBP (£).
+    
+    Job Category: ${category}
+    Job Title: ${title}
+    Job Description: ${description}
+    
+    Provide your response in JSON format with the following structure:
+    {
+      "minPrice": number,
+      "maxPrice": number,
+      "reasoning": "A concise explanation of the cost factors, labor hours, and material estimates for this specific job in the UK market.",
+      "confidence": number (between 0 and 1)
+    }
+    
+    Ensure the reasoning is professional and helpful for a homeowner.
+    Only return the JSON object, nothing else.
+    `;
 
-  // Basic mock logic based on category and keywords
-  let baseMin = 100;
-  let baseMax = 300;
+    const response = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "You are a professional cost estimator for UK home improvement and trade services." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" }
+    });
 
-  const cat = category.toLowerCase();
-  if (cat.includes("plumbing")) {
-    baseMin = 80;
-    baseMax = 250;
-  } else if (cat.includes("electrical")) {
-    baseMin = 120;
-    baseMax = 400;
-  } else if (cat.includes("building") || cat.includes("extension")) {
-    baseMin = 2000;
-    baseMax = 15000;
-  } else if (cat.includes("painting")) {
-    baseMin = 150;
-    baseMax = 800;
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("Empty response from AI service");
+    }
+
+    const result = JSON.parse(content) as AIEstimate;
+    
+    // Basic validation to ensure we have numbers
+    return {
+      minPrice: Number(result.minPrice) || 0,
+      maxPrice: Number(result.maxPrice) || 0,
+      reasoning: result.reasoning || "Estimation complete.",
+      confidence: Number(result.confidence) || 0.8
+    };
+  } catch (error) {
+    console.error("[AI Service] Error estimating job cost:", error);
+    // Fallback to basic calculation if AI fails
+    return {
+      minPrice: 150,
+      maxPrice: 500,
+      reasoning: "We're currently experiencing high demand. This is a generic estimate for UK trade services.",
+      confidence: 0.5
+    };
   }
-
-  // Adjust based on description length as a proxy for complexity
-  const complexityFactor = Math.min(description.length / 200, 2);
-  const minPrice = Math.round(baseMin * (1 + complexityFactor * 0.5));
-  const maxPrice = Math.round(baseMax * (1 + complexityFactor));
-
-  return {
-    minPrice,
-    maxPrice,
-    reasoning: `Based on the ${category} category and the details provided ("${title}"), we estimate this job will require approximately ${Math.round(complexityFactor * 4 + 2)} hours of labor plus materials. The range accounts for potential variations in material quality and site access.`,
-    confidence: 0.85,
-  };
 }

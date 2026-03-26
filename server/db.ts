@@ -34,14 +34,30 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      // For TiDB Cloud, we need to ensure SSL is properly configured.
       const url = new URL(process.env.DATABASE_URL);
+      const dbName = url.pathname.substring(1) || "tradequote";
+      
+      // First connect without database to ensure it exists
+      const connection = await mysql.createConnection({
+        host: url.hostname,
+        port: parseInt(url.port) || 3306,
+        user: url.username,
+        password: url.password,
+        ssl: {
+          rejectUnauthorized: true,
+        },
+      });
+      
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+      await connection.end();
+
+      // Now connect to the actual database
       const pool = mysql.createPool({
         host: url.hostname,
         port: parseInt(url.port) || 3306,
         user: url.username,
         password: url.password,
-        database: url.pathname.substring(1),
+        database: dbName,
         ssl: {
           rejectUnauthorized: true,
         },
@@ -51,7 +67,7 @@ export async function getDb() {
       });
       
       _db = drizzle(pool);
-      console.log("[Database] Connected to", url.hostname);
+      console.log("[Database] Connected to", url.hostname, "database:", dbName);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -83,7 +99,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
     await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) { console.error("[Database] Failed to upsert user:", error); throw error; }
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -93,8 +112,6 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// ─── App User Helpers ───────────────────────────────────────────────────────────
-
 export async function getAppUserByUserId(userId: number) {
   const db = await getDb();
   if (!db) return null;
@@ -102,18 +119,19 @@ export async function getAppUserByUserId(userId: number) {
   return result[0] ?? null;
 }
 
-export async function createAppUser(data: InsertAppUser) {
+export async function createAppUser(user: InsertAppUser) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const result = await db.insert(appUsers).values(data);
-  return result[0].insertId;
+  if (!db) return;
+  await db.insert(appUsers).values(user);
 }
 
-export async function updateAppUser(userId: number, data: Partial<AppUser>) {
+export async function updateAppUser(userId: number, data: Partial<InsertAppUser>) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.update(appUsers).set(data).where(eq(appUsers.userId, userId));
 }
+
+// ─── Profile Helpers ──────────────────────────────────────────────────────────
 
 export async function getHomeownerProfile(userId: number) {
   const db = await getDb();
@@ -122,9 +140,9 @@ export async function getHomeownerProfile(userId: number) {
   return result[0] ?? null;
 }
 
-export async function createHomeownerProfile(userId: number, propertyType: "house" | "flat" | "bungalow" | "commercial" | "other") {
+export async function createHomeownerProfile(userId: number, propertyType: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.insert(homeownerProfiles).values({ userId, propertyType });
 }
 
@@ -135,22 +153,19 @@ export async function getTradespersonProfile(userId: number) {
   return result[0] ?? null;
 }
 
-export async function createTradespersonProfile(
-  userId: number,
-  data: { businessName?: string; bio?: string; yearsExperience?: number; serviceRadiusMiles: number }
-) {
+export async function createTradespersonProfile(userId: number, data: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.insert(tradespersonProfiles).values({ userId, ...data });
 }
 
-export async function updateTradespersonProfile(userId: number, data: Partial<typeof tradespersonProfiles.$inferInsert>) {
+export async function updateTradespersonProfile(userId: number, data: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.update(tradespersonProfiles).set(data).where(eq(tradespersonProfiles.userId, userId));
 }
 
-// ─── Trade Categories ───────────────────────────────────────────────────────────
+// ─── Job Helpers ──────────────────────────────────────────────────────────
 
 export async function getTradeCategories() {
   const db = await getDb();
@@ -161,38 +176,26 @@ export async function getTradeCategories() {
 export async function seedTradeCategories() {
   const db = await getDb();
   if (!db) return;
-  const existing = await db.select().from(tradeCategories).limit(1);
-  if (existing.length > 0) return;
   const categories = [
-    { name: "Plumbing", slug: "plumbing", icon: "drop.fill", riskLevel: "medium" as const, sortOrder: 1 },
-    { name: "Electrical", slug: "electrical", icon: "bolt.fill", riskLevel: "high" as const, sortOrder: 2 },
-    { name: "Gas & Heating", slug: "gas-heating", icon: "flame.fill", riskLevel: "high" as const, sortOrder: 3 },
-    { name: "Building & Construction", slug: "building", icon: "hammer.fill", riskLevel: "high" as const, sortOrder: 4 },
-    { name: "Painting & Decorating", slug: "painting", icon: "paintbrush.fill", riskLevel: "low" as const, sortOrder: 5 },
-    { name: "Carpentry & Joinery", slug: "carpentry", icon: "wrench.fill", riskLevel: "medium" as const, sortOrder: 6 },
-    { name: "Roofing", slug: "roofing", icon: "house.fill", riskLevel: "high" as const, sortOrder: 7 },
-    { name: "Tiling", slug: "tiling", icon: "grid.2x2.fill", riskLevel: "low" as const, sortOrder: 8 },
-    { name: "Landscaping & Gardening", slug: "landscaping", icon: "leaf.fill", riskLevel: "low" as const, isGreenCategory: true, sortOrder: 9 },
-    { name: "Cleaning", slug: "cleaning", icon: "sparkles", riskLevel: "low" as const, sortOrder: 10 },
-    { name: "Locksmith", slug: "locksmith", icon: "key.fill", riskLevel: "medium" as const, sortOrder: 11 },
-    { name: "Plastering", slug: "plastering", icon: "paintbrush.fill", riskLevel: "low" as const, sortOrder: 12 },
-    { name: "Solar & Renewables", slug: "solar", icon: "sun.max.fill", riskLevel: "medium" as const, isGreenCategory: true, sortOrder: 13 },
-    { name: "Extensions & Conversions", slug: "extensions", icon: "building.2.fill", riskLevel: "high" as const, sortOrder: 14 },
-    { name: "Bathroom Fitting", slug: "bathroom", icon: "bathtub.fill", riskLevel: "medium" as const, sortOrder: 15 },
-    { name: "Kitchen Fitting", slug: "kitchen", icon: "kitchen.fill", riskLevel: "medium" as const, sortOrder: 16 },
-    { name: "Windows & Doors", slug: "windows-doors", icon: "window.ceiling.closed", riskLevel: "medium" as const, sortOrder: 17 },
-    { name: "Other", slug: "other", icon: "wrench.and.screwdriver.fill", riskLevel: "medium" as const, sortOrder: 99 },
+    { name: "Plumbing", slug: "plumbing", icon: "water" },
+    { name: "Electrical", slug: "electrical", icon: "flash" },
+    { name: "Building", slug: "building", icon: "construct" },
+    { name: "Painting", slug: "painting", icon: "brush" },
+    { name: "Carpentry", slug: "carpentry", icon: "hammer" },
+    { name: "Roofing", slug: "roofing", icon: "home" },
+    { name: "Gardening", slug: "gardening", icon: "leaf" },
+    { name: "Cleaning", slug: "cleaning", icon: "sparkles" },
   ];
-  await db.insert(tradeCategories).values(categories);
+  for (const cat of categories) {
+    await db.insert(tradeCategories).values(cat).onDuplicateKeyUpdate({ set: cat });
+  }
 }
 
-// ─── Jobs ───────────────────────────────────────────────────────────────────────
-
-export async function createJob(data: InsertJob) {
+export async function createJob(job: InsertJob) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(jobs).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(jobs).values(job);
+  return result.insertId;
 }
 
 export async function getJobsByHomeowner(homeownerId: number) {
@@ -201,7 +204,7 @@ export async function getJobsByHomeowner(homeownerId: number) {
   return db.select().from(jobs).where(eq(jobs.homeownerId, homeownerId)).orderBy(desc(jobs.createdAt));
 }
 
-export async function getOpenJobs(limit = 20) {
+export async function getOpenJobs(limit = 50) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(jobs).where(eq(jobs.status, "open")).orderBy(desc(jobs.createdAt)).limit(limit);
@@ -214,15 +217,15 @@ export async function getJobById(id: number) {
   return result[0] ?? null;
 }
 
-export async function updateJobStatus(id: number, status: typeof jobs.$inferInsert["status"]) {
+export async function updateJobStatus(id: number, status: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.update(jobs).set({ status }).where(eq(jobs.id, id));
 }
 
 export async function addJobPhoto(jobId: number, photoUrl: string, caption?: string) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.insert(jobPhotos).values({ jobId, photoUrl, caption });
 }
 
@@ -232,19 +235,19 @@ export async function getJobPhotos(jobId: number) {
   return db.select().from(jobPhotos).where(eq(jobPhotos.jobId, jobId));
 }
 
-// ─── Quotes ─────────────────────────────────────────────────────────────────────
+// ─── Quote Helpers ──────────────────────────────────────────────────────────
 
-export async function createQuote(data: InsertQuote) {
+export async function createQuote(quote: InsertQuote) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(quotes).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(quotes).values(quote);
+  return result.insertId;
 }
 
 export async function getQuotesByJob(jobId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(quotes).where(eq(quotes.jobId, jobId)).orderBy(desc(quotes.isBoosted), desc(quotes.createdAt));
+  return db.select().from(quotes).where(eq(quotes.jobId, jobId)).orderBy(desc(quotes.createdAt));
 }
 
 export async function getQuotesByTradesperson(tradespersonId: number) {
@@ -253,38 +256,25 @@ export async function getQuotesByTradesperson(tradespersonId: number) {
   return db.select().from(quotes).where(eq(quotes.tradespersonId, tradespersonId)).orderBy(desc(quotes.createdAt));
 }
 
-export async function updateQuoteStatus(id: number, status: typeof quotes.$inferInsert["status"]) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(quotes).set({ status }).where(eq(quotes.id, id));
-}
-
 export async function acceptQuote(quoteId: number, jobId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.update(quotes).set({ status: "accepted" }).where(eq(quotes.id, quoteId));
-  await db.update(quotes).set({ status: "rejected" }).where(and(eq(quotes.jobId, jobId), eq(quotes.status, "pending")));
   await db.update(jobs).set({ status: "accepted", acceptedQuoteId: quoteId }).where(eq(jobs.id, jobId));
 }
 
-// ─── Conversations & Messages ───────────────────────────────────────────────────
-
-export async function getOrCreateConversation(jobId: number, homeownerId: number, tradespersonId: number) {
+export async function updateQuoteStatus(id: number, status: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const existing = await db.select().from(conversations)
-    .where(and(eq(conversations.jobId, jobId), eq(conversations.tradespersonId, tradespersonId))).limit(1);
-  if (existing[0]) return existing[0].id;
-  const result = await db.insert(conversations).values({ jobId, homeownerId, tradespersonId });
-  return result[0].insertId;
+  if (!db) return;
+  await db.update(quotes).set({ status }).where(eq(quotes.id, id));
 }
+
+// ─── Message Helpers ──────────────────────────────────────────────────────────
 
 export async function getConversationsByUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(conversations)
-    .where(or(eq(conversations.homeownerId, userId), eq(conversations.tradespersonId, userId)))
-    .orderBy(desc(conversations.lastMessageAt));
+  return db.select().from(conversations).where(or(eq(conversations.homeownerId, userId), eq(conversations.tradespersonId, userId))).orderBy(desc(conversations.lastMessageAt));
 }
 
 export async function getMessagesByConversation(conversationId: number) {
@@ -293,59 +283,59 @@ export async function getMessagesByConversation(conversationId: number) {
   return db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
 }
 
-export async function sendMessage(data: InsertMessage) {
+export async function sendMessage(msg: InsertMessage) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(messages).values(data);
-  await db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, data.conversationId));
-  return result[0].insertId;
+  const [result] = await db.insert(messages).values(msg);
+  await db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, msg.conversationId));
+  return result.insertId;
 }
 
-// ─── Reviews ────────────────────────────────────────────────────────────────────
-
-export async function createReview(data: InsertReview) {
+export async function getOrCreateConversation(jobId: number, homeownerId: number, tradespersonId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const visibleAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-  const result = await db.insert(reviews).values({ ...data, visibleAt });
-  return result[0].insertId;
+  const existing = await db.select().from(conversations).where(and(eq(conversations.jobId, jobId), eq(conversations.homeownerId, homeownerId), eq(conversations.tradespersonId, tradespersonId))).limit(1);
+  if (existing.length > 0) return existing[0].id;
+  const [result] = await db.insert(conversations).values({ jobId, homeownerId, tradespersonId });
+  return result.insertId;
 }
 
-export async function getReviewsByUser(revieweeId: number) {
+// ─── Review Helpers ──────────────────────────────────────────────────────────
+
+export async function createReview(review: InsertReview) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(reviews).values(review);
+  return result.insertId;
+}
+
+export async function getReviewsByUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(reviews)
-    .where(and(eq(reviews.revieweeId, revieweeId), eq(reviews.isVisible, true)))
-    .orderBy(desc(reviews.createdAt));
+  return db.select().from(reviews).where(eq(reviews.revieweeId, userId)).orderBy(desc(reviews.createdAt));
 }
 
-// ─── Progress Updates ───────────────────────────────────────────────────────────
+// ─── Progress Helpers ──────────────────────────────────────────────────────────
 
-export async function addProgressUpdate(data: typeof progressUpdates.$inferInsert) {
+export async function addProgressUpdate(update: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(progressUpdates).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(progressUpdates).values(update);
+  return result.insertId;
 }
 
 export async function getProgressUpdatesByJob(jobId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(progressUpdates).where(eq(progressUpdates.jobId, jobId)).orderBy(progressUpdates.createdAt);
+  return db.select().from(progressUpdates).where(eq(progressUpdates.jobId, jobId)).orderBy(desc(progressUpdates.createdAt));
 }
 
-// ─── Notifications ──────────────────────────────────────────────────────────────
-
-export async function createNotification(data: typeof notifications.$inferInsert) {
-  const db = await getDb();
-  if (!db) return;
-  await db.insert(notifications).values(data);
-}
+// ─── Notification Helpers ──────────────────────────────────────────────────────────
 
 export async function getNotificationsByUser(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(50);
+  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
 }
 
 export async function markNotificationRead(id: number) {
@@ -360,7 +350,7 @@ export async function markAllNotificationsRead(userId: number) {
   await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
 }
 
-// ─── Credentials ────────────────────────────────────────────────────────────────
+// ─── Credential Helpers ──────────────────────────────────────────────────────────
 
 export async function getCredentialsByTradesperson(tradespersonId: number) {
   const db = await getDb();
@@ -368,14 +358,14 @@ export async function getCredentialsByTradesperson(tradespersonId: number) {
   return db.select().from(credentials).where(eq(credentials.tradespersonId, tradespersonId));
 }
 
-export async function addCredential(data: typeof credentials.$inferInsert) {
+export async function addCredential(cred: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(credentials).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(credentials).values(cred);
+  return result.insertId;
 }
 
-// ─── Favourites ─────────────────────────────────────────────────────────────────
+// ─── Favourite Helpers ──────────────────────────────────────────────────────────
 
 export async function getFavouritesByHomeowner(homeownerId: number) {
   const db = await getDb();
@@ -385,54 +375,60 @@ export async function getFavouritesByHomeowner(homeownerId: number) {
 
 export async function addFavourite(homeownerId: number, tradespersonId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.insert(favourites).values({ homeownerId, tradespersonId });
 }
 
 export async function removeFavourite(homeownerId: number, tradespersonId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.delete(favourites).where(and(eq(favourites.homeownerId, homeownerId), eq(favourites.tradespersonId, tradespersonId)));
 }
 
-// ─── Availability Slots ─────────────────────────────────────────────────────────────────
+// ─── Availability Helpers ──────────────────────────────────────────────────────────
+
 export async function getAvailabilitySlots(tradespersonId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(availabilitySlots).where(eq(availabilitySlots.tradespersonId, tradespersonId));
 }
-export async function addAvailabilitySlot(data: { tradespersonId: number; date: string; startTime: string; endTime: string }) {
+
+export async function addAvailabilitySlot(slot: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(availabilitySlots).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(availabilitySlots).values(slot);
+  return result.insertId;
 }
+
 export async function removeAvailabilitySlot(slotId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.delete(availabilitySlots).where(eq(availabilitySlots.id, slotId));
 }
 
+// ─── Job Alert Helpers ──────────────────────────────────────────────────────────
 
-// ─── Job Alerts ─────────────────────────────────────────────────────────────────
 export async function getJobAlertsByTradesperson(tradespersonId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(jobAlerts).where(eq(jobAlerts.tradespersonId, tradespersonId));
 }
-export async function createJobAlert(data: { tradespersonId: number; tradeCategory: string; postcode: string; radiusMiles: number; minBudget?: number; maxBudget?: number; enabled: boolean }) {
+
+export async function createJobAlert(alert: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(jobAlerts).values(data);
-  return result[0].insertId;
+  const [result] = await db.insert(jobAlerts).values(alert);
+  return result.insertId;
 }
-export async function updateJobAlert(alertId: number, updates: { enabled?: boolean }) {
+
+export async function updateJobAlert(alertId: number, data: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(jobAlerts).set(updates).where(eq(jobAlerts.id, alertId));
+  if (!db) return;
+  await db.update(jobAlerts).set(data).where(eq(jobAlerts.id, alertId));
 }
+
 export async function deleteJobAlert(alertId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) return;
   await db.delete(jobAlerts).where(eq(jobAlerts.id, alertId));
 }
