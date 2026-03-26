@@ -2,6 +2,7 @@ import { ScrollView, Text, View, Pressable, StyleSheet, FlatList, Alert } from "
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ProjectTimeline } from "@/components/project-timeline";
 import { useColors } from "@/hooks/use-colors";
 import { useAppContext } from "@/lib/app-context";
 import { trpc } from "@/lib/trpc";
@@ -17,6 +18,7 @@ export default function JobDetailScreen() {
 
   const { data: job, isLoading } = trpc.jobs.get.useQuery({ id: parseInt(id) }, { enabled: !!id });
   const { data: quotes } = trpc.quotes.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id });
+  const { data: progressUpdates } = trpc.progress.byJob.useQuery({ jobId: parseInt(id) }, { enabled: !!id && job?.status === "in_progress" });
 
   const acceptQuote = trpc.quotes.accept.useMutation({
     onSuccess: () => {
@@ -102,6 +104,21 @@ export default function JobDetailScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Description</Text>
             <Text style={[styles.description, { color: colors.foreground }]}>{job.description}</Text>
           </View>
+
+          {/* Project Timeline */}
+          {job.status === "in_progress" && progressUpdates && progressUpdates.length > 0 && (
+            <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, padding: 0, overflow: "hidden" }]}>
+              <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <IconSymbol name="checkmark.circle.fill" size={16} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Project Progress</Text>
+                </View>
+              </View>
+              <ProjectTimeline events={progressUpdates} onVerifyMilestone={(id) => {
+                // Handle milestone verification
+              }} />
+            </View>
+          )}
 
           {/* Availability Info */}
           {isHomeowner && (

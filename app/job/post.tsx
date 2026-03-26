@@ -48,6 +48,8 @@ export default function PostJobScreen() {
   const [isEmergency, setIsEmergency] = useState(false);
   const [wantBoost, setWantBoost] = useState(false);
   const [error, setError] = useState("");
+  const [aiEstimate, setAiEstimate] = useState<{ minPrice: number; maxPrice: number; reasoning: string } | null>(null);
+  const [isEstimating, setIsEstimating] = useState(false);
 
   // If emergency param is set, set urgency to emergency
   useEffect(() => {
@@ -65,6 +67,27 @@ export default function PostJobScreen() {
     onError: (e) => setError(e.message),
   });
 
+  const getEstimate = trpc.jobs.estimate.useQuery(
+    { title, description, category: selectedCategory?.name || "" },
+    { enabled: false }
+  );
+
+  const handleGetEstimate = async () => {
+    if (!title.trim() || !description.trim() || !selectedCategory) return;
+    setIsEstimating(true);
+    try {
+      const result = await getEstimate.refetch();
+      if (result.data) {
+        setAiEstimate(result.data);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    } catch (err) {
+      console.error("Estimation failed", err);
+    } finally {
+      setIsEstimating(false);
+    }
+  };
+
   const selectedCategory = TRADE_CATEGORIES.find(c => c.id === categoryId);
 
   const steps: Step[] = ["category", "details", "budget", "timing", "confirm"];
@@ -80,6 +103,7 @@ export default function PostJobScreen() {
       if (!title.trim() || title.trim().length < 5) { setError("Please enter a descriptive title (min 5 chars)"); return; }
       if (!description.trim() || description.trim().length < 10) { setError("Please describe the work needed (min 10 chars)"); return; }
       if (!postcode.trim()) { setError("Please enter your postcode"); return; }
+      handleGetEstimate();
       setStep("budget");
     } else if (step === "budget") {
       setStep("timing");
@@ -206,6 +230,36 @@ export default function PostJobScreen() {
               <View style={styles.stepContent}>
                 <Text style={[styles.stepTitle, { color: colors.foreground }]}>What's your budget?</Text>
                 <Text style={[styles.stepDesc, { color: colors.muted }]}>Setting a budget helps tradespeople quote accurately</Text>
+                
+                {/* AI Estimate Card */}
+                {(isEstimating || aiEstimate) && (
+                  <View style={[styles.aiCard, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "30" }]}>
+                    <View style={styles.aiHeader}>
+                      <IconSymbol name="sparkles" size={18} color={colors.primary} />
+                      <Text style={[styles.aiTitle, { color: colors.primary }]}>AI Price Estimate</Text>
+                    </View>
+                    {isEstimating ? (
+                      <Text style={[styles.aiLoading, { color: colors.muted }]}>Analyzing job details...</Text>
+                    ) : aiEstimate ? (
+                      <View>
+                        <Text style={[styles.aiPrice, { color: colors.foreground }]}>£{aiEstimate.minPrice} - £{aiEstimate.maxPrice}</Text>
+                        <Text style={[styles.aiReasoning, { color: colors.muted }]}>{aiEstimate.reasoning}</Text>
+                        <Pressable 
+                          style={styles.applyAiBtn}
+                          onPress={() => {
+                            setBudgetMin(aiEstimate.minPrice.toString());
+                            setBudgetMax(aiEstimate.maxPrice.toString());
+                            setBudgetNotSure(false);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
+                        >
+                          <Text style={[styles.applyAiText, { color: colors.primary }]}>Apply these values</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+
                 <View style={styles.form}>
                   <Pressable
                     style={({ pressed }) => [
@@ -382,6 +436,14 @@ const styles = StyleSheet.create({
   stepContent: { gap: 16 },
   stepTitle: { fontSize: 26, fontWeight: "800", letterSpacing: -0.5 },
   stepDesc: { fontSize: 15, lineHeight: 22 },
+  aiCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
+  aiHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  aiTitle: { fontSize: 14, fontWeight: "700", marginLeft: 6, textTransform: "uppercase", letterSpacing: 0.5 },
+  aiLoading: { fontSize: 14, fontStyle: "italic" },
+  aiPrice: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  aiReasoning: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  applyAiBtn: { alignSelf: "flex-start" },
+  applyAiText: { fontSize: 14, fontWeight: "600", textDecorationLine: "underline" },
   categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   categoryCard: { width: "47%", borderRadius: 14, borderWidth: 1.5, padding: 14, alignItems: "center", gap: 8 },
   categoryName: { fontSize: 13, fontWeight: "600", textAlign: "center" },
