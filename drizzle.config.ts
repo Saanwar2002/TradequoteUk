@@ -1,18 +1,17 @@
 import { defineConfig } from "drizzle-kit";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required to run drizzle commands");
-}
-
 export default defineConfig({
   schema: "./drizzle/schema.ts",
   out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {
-    url: connectionString,
+    host: "gateway01.eu-central-1.prod.aws.tidbcloud.com",
+    port: 4000,
+    user: "FC8GsaD8hLQ7Yoc.root",
+    password: "hHAUj9GVvf7c5qFq",
+    database: "test",
     ssl: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     },
   },
 });
